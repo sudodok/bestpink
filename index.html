@@ -55,37 +55,9 @@
 
             <!-- Member Login Form -->
             <form id="member-login-form" onsubmit="handleMemberLogin(event)">
-                <div class="form-group" style="position: relative;">
-                    <label for="login-member-name">ชื่อ-นามสกุล ผู้เบิกเงิน</label>
-                    <input type="text" id="login-member-name" class="form-control"
-                        placeholder="พิมพ์ชื่อหรือนามสกุลเพื่อค้นหา..."
-                        autocomplete="off"
-                        oninput="handleMemberSearch(this.value)"
-                        onfocus="handleMemberSearch(this.value)"
-                        required>
-                    <input type="hidden" id="login-member-id">
-                    <div id="member-suggest-list" style="
-                        display: none;
-                        position: absolute;
-                        top: 100%; left: 0; right: 0;
-                        background: var(--bg-secondary);
-                        border: 1px solid var(--border-color);
-                        border-radius: 0.5rem;
-                        max-height: 220px;
-                        overflow-y: auto;
-                        z-index: 999;
-                        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-                        margin-top: 4px;
-                    "></div>
-                </div>
                 <div class="form-group">
-                    <label for="login-member-code">รหัสผ่าน</label>
-                    <input type="password" id="login-member-code" class="form-control"
-                        placeholder="กรอกรหัสผ่าน"
-                        autocomplete="off" required>
-                    <div id="member-code-error" style="display:none; color: var(--accent-danger); font-size:0.82rem; margin-top:0.35rem;">
-                        <i class="fa-solid fa-circle-exclamation"></i> รหัสผ่านไม่ถูกต้อง
-                    </div>
+                    <label for="login-member-name">ชื่อ-นามสกุล ผู้เบิกเงิน</label>
+                    <input type="text" id="login-member-name" class="form-control" placeholder="ระบุชื่อจริง เช่น น.ส.ใจดี ปทุมธานี" required>
                 </div>
                 <div class="form-group">
                     <label for="login-member-dept">ฝ่ายงานที่รับผิดชอบ</label>
@@ -242,9 +214,9 @@
                             <textarea id="req-memo" class="form-control" rows="2" placeholder="อธิบายร้านค้า วันที่ซื้อ หรือความจำเป็นในการซื้อเพิ่มเติมเพื่อช่วยประธานตรวจสอบง่ายขึ้น"></textarea>
                         </div>
 
-                        <!-- Live Warning if exceeds total remaining balance -->
+                        <!-- Live Warning if exceeds department allocation -->
                         <div id="form-budget-warning" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-danger); padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem; color: var(--accent-danger); font-size: 0.85rem;">
-                            <i class="fa-solid fa-triangle-exclamation"></i> คำเตือน: จำนวนเงินที่ขอเบิกนี้เกินกว่างบประมาณคงเหลือในคลังสวัสดิการรวม
+                            <i class="fa-solid fa-triangle-exclamation"></i> คำเตือน: จำนวนเงินที่ขอเบิกนี้เกินกว่างบประมาณคงเหลือที่จัดสรรไว้สำหรับฝ่ายงานของคุณ
                         </div>
 
                         <!-- Upload Grid with 3 uploads -->
@@ -359,6 +331,36 @@
                         </form>
                     </div>
 
+                    <!-- Allocation Panel (President can configure department quotas) -->
+                    <div class="panel-card" id="allocation-panel">
+                        <h2 class="panel-title"><i class="fa-solid fa-pie-chart"></i> จัดสรรโควตางบประมาณฝ่ายย่อย</h2>
+                        <form id="allocation-form" onsubmit="handleAllocationSubmit(event)">
+                            <div class="form-group">
+                                <label for="alloc-stand">ฝ่ายสแตนด์เชียร์ (฿)</label>
+                                <input type="number" id="alloc-stand" class="form-control" min="0" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="alloc-leaders">ฝ่ายเชียร์ลีดเดอร์ (฿)</label>
+                                <input type="number" id="alloc-leaders" class="form-control" min="0" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="alloc-parade">ฝ่ายขบวนพาเหรด (฿)</label>
+                                <input type="number" id="alloc-parade" class="form-control" min="0" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="alloc-welfare">ฝ่ายสวัสดิการและอาหาร (฿)</label>
+                                <input type="number" id="alloc-welfare" class="form-control" min="0" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="alloc-props">ฝ่ายอุปกรณ์และฉาก (฿)</label>
+                                <input type="number" id="alloc-props" class="form-control" min="0" placeholder="0.00" required>
+                            </div>
+                            
+                            <button type="submit" id="submit-alloc-btn" class="btn btn-primary">
+                                <i class="fa-solid fa-save"></i> บันทึกและปรับปรุงโควตางบประมาณ
+                            </button>
+                        </form>
+                    </div>
 
                     <div id="president-only-warning" style="display: none; text-align: center; color: var(--accent-warning); font-size: 0.9rem;">
                         <i class="fa-solid fa-triangle-exclamation"></i> ฟังก์ชันการเงินของประธานสวัสดิการ จะเปิดใช้งานเมื่อล็อกอินระบบประธานแล้วเท่านั้น
@@ -460,10 +462,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Firebase Compat SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- Main JavaScript Logic -->
     <script src="app.js"></script>

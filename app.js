@@ -1,29 +1,3 @@
-// ========== FIREBASE CONFIGURATION ==========
-const firebaseConfig = {
-  apiKey: "AIzaSyBd_pyErc9_R8khJ_C7-T0MH9YeP9fMChw",
-  authDomain: "pink-team-sports-86e69.firebaseapp.com",
-  projectId: "pink-team-sports-86e69",
-  storageBucket: "pink-team-sports-86e69.firebasestorage.app",
-  messagingSenderId: "629781285829",
-  appId: "1:629781285829:web:9c91cdaac966a16ce359ac",
-  measurementId: "G-PK1JSB9T32"
-};
-
-let db = null;
-let useFirebase = false;
-
-// เริ่มต้นใช้งาน Firebase
-if (typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
-    try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        useFirebase = true;
-        console.log("🔥 Firebase initialized successfully! Connected to Firestore Database.");
-    } catch (e) {
-        console.error("Firebase init failed, running in local database mode:", e);
-    }
-}
-
 // Placeholder SVGs to use as mock default images
 const MOCK_RECEIPT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" style="background-color:%23f1f5f9;font-family:sans-serif;"><rect width="180" height="240" x="10" y="10" rx="5" fill="white" stroke="%23cbd5e1" stroke-width="2"/><line x1="25" y1="40" x2="175" y2="40" stroke="%23334155" stroke-width="2" stroke-dasharray="4"/><text x="25" y="65" fill="%231e293b" font-size="14" font-weight="bold">RECEIPT</text><text x="25" y="85" fill="%2364748b" font-size="10">Pink Team Sports Day</text><text x="25" y="120" fill="%23334155" font-size="11">Purchased Item</text><text x="25" y="140" fill="%2364748b" font-size="10">Tax invoice included</text><line x1="25" y1="180" x2="175" y2="180" stroke="%23cbd5e1" stroke-width="1"/><text x="25" y="205" fill="%231e293b" font-size="14" font-weight="bold">TOTAL</text><text x="110" y="205" fill="%23ec4899" font-size="14" font-weight="bold">Reimburse</text></svg>`;
 
@@ -57,137 +31,6 @@ const DEPARTMENTS = {
     props: { name: '🎭 ฝ่ายอุปกรณ์และฉาก', color: 'var(--dept-props)' }
 };
 
-// ========== รายชื่อสมาชิกคณะสีชมพู ==========
-const MEMBERS = [
-    // รายชื่อเดิม
-    { id: '40119', firstName: 'ธนโชติ',     lastName: 'แจ้งเลิศ' },
-    { id: '40134', firstName: 'ธรรมรัตน์',   lastName: 'อุดรศรี' },
-    { id: '40195', firstName: 'ปองคุณ',      lastName: 'อรรคชัยพานิช' },
-    { id: '42230', firstName: 'กฤษณ์',       lastName: 'ลือวัฒนานนท์' },
-    { id: '42235', firstName: 'คณิศร',       lastName: 'กิ่งกันคำ' },
-    { id: '42264', firstName: 'ปกรณ์เกียรติ', lastName: 'เคนจอม' },
-    { id: '42272', firstName: 'พงศกร',       lastName: 'อุดเวียง' },
-    { id: '42273', firstName: 'พชร',         lastName: 'จักรเงิน' },
-    { id: '42280', firstName: 'พีรพัฒน์',    lastName: 'แสนคำวัง' },
-    { id: '42281', firstName: 'พีรวัส',      lastName: 'วังหา' },
-    { id: '42303', firstName: 'อาทิตย์',     lastName: 'กาญจนกูล' },
-    { id: '39954', firstName: 'กฤตภรณ์',    lastName: 'พรินทรากูล' },
-    { id: '39976', firstName: 'กัญญาณัฐ',   lastName: 'สุขศิลปชัย' },
-    { id: '39979', firstName: 'กัญญารัตน์',   lastName: 'เรื่องขจร' },
-    { id: '39988', firstName: 'กาญจนา',     lastName: 'เหมืองจา' },
-    { id: '40037', firstName: 'ชนัญชิตา',   lastName: 'สายาจักร' },
-    { id: '40054', firstName: 'ชวิศา',      lastName: 'คงคารักษ์' },
-    { id: '40057', firstName: 'ชลลิสา',     lastName: 'คำปาแฝง' },
-    { id: '40088', firstName: 'ณัฐธิดา',    lastName: 'ไชยยอด' },
-    { id: '40104', firstName: 'ตามภรณ์',    lastName: 'ชัยชนะ' },
-    { id: '40109', firstName: 'ทักษพร',     lastName: 'อุดร' },
-    { id: '40112', firstName: 'ธนิตากานต์', lastName: 'ธนสาร' },
-    { id: '40147', firstName: 'ธิดารัตน์',  lastName: 'วิเชียรกันทา' },
-    { id: '40161', firstName: 'นันท์ชพร',   lastName: 'เสนากูล' },
-    { id: '40184', firstName: 'ปภาวรินทร์', lastName: 'บุตรเสน' },
-    { id: '40185', firstName: 'ปภาวรินทร์', lastName: 'วังอินทร์' },
-    { id: '40232', firstName: 'พรอนงค์',    lastName: 'ยาสุปิ' },
-    { id: '40244', firstName: 'พัทธ์ธิดา',  lastName: 'วาสนาโลก' },
-    { id: '40267', firstName: 'พิมพ์ลภัส',  lastName: 'วันมหาใจ' },
-    { id: '40318', firstName: 'มนัญชยา',    lastName: 'อินต๊ะวงศ์' },
-    { id: '40339', firstName: 'วรณัน',      lastName: 'อินต๊ะจัง' },
-    { id: '40359', firstName: 'ศกุลตลา',    lastName: 'คชปัญญา' },
-    { id: '40404', firstName: 'สุภนิตา',    lastName: 'ถาป้อม' },
-    { id: '40424', firstName: 'อัญชิษฐา',   lastName: 'วาปีศิริ' },
-    { id: '42240', firstName: 'ฐิตาภา',     lastName: 'คำน้ำปาด' },
-    { id: '42243', firstName: 'ณัฐกฤตา',    lastName: 'อุตสม' },
-    { id: '42250', firstName: 'ธมลวรรณ',    lastName: 'อินจันทร์' },
-    { id: '42276', firstName: 'พัทธ์ธีรา',  lastName: 'ประพัศรางค์' },
-    { id: '40281', firstName: 'วุฒินันท์',  lastName: 'นันทะไสย' },
-    { id: '42292', firstName: 'วนัชพร',     lastName: 'กาศสนุก' },
-    { id: '42932', firstName: 'ภิรพัชร',    lastName: 'หิรัตน์พันธุ์' },
-
-    // รายชื่อใหม่เพิ่มเติม
-    { id: '39967', firstName: 'กฤติธี',     lastName: 'แสนคำ' },
-    { id: '39998', firstName: 'เกียรติสกุล', lastName: 'กันกา' },
-    { id: '40019', firstName: 'จิรัฏฐ์',     lastName: 'บัตริยะ' },
-    { id: '40050', firstName: 'ชยุตพงศ์',   lastName: 'ดีคำ' },
-    { id: '40059', firstName: 'ชิษณุพงศ์',   lastName: 'ทะจักร์' },
-    { id: '40309', firstName: 'ภาวิต',      lastName: 'ภาสสัทธา' },
-    { id: '40338', firstName: 'วรนน',       lastName: 'สัจจะนรพันธ์' },
-    { id: '40350', firstName: 'วิเชียรรัตน์',  lastName: 'ดอกแก้ว' },
-    { id: '39993', firstName: 'กิตพร',      lastName: 'เพชรพัฒนากุล' },
-    { id: '40049', firstName: 'ชยาดา',      lastName: 'สมบูรณ์' },
-    { id: '40076', firstName: 'ณฤดี',       lastName: 'ศรีเจริญภากร' },
-    { id: '40087', firstName: 'ณัฐธยาน์',    lastName: 'แก้วกล้า' },
-    { id: '40092', firstName: 'ณัฐภัสสร',    lastName: 'ยศเลิศ' },
-    { id: '40122', firstName: 'ธนพร',      lastName: 'ใจยะ' },
-    { id: '40132', firstName: 'ธนิสตา',     lastName: 'สีอินทร์' },
-    { id: '40179', firstName: 'ปณิตา',      lastName: 'ถุงพลอย' },
-    { id: '40200', firstName: 'ปัทมพร',     lastName: 'กาศเกษม' },
-    { id: '40202', firstName: 'ปานปั้น',     lastName: 'นุชธิสาร' },
-    { id: '40245', firstName: 'พัทธนันท์',    lastName: 'คำลือ' },
-    { id: '40266', firstName: 'พิมพ์ลภัส',    lastName: 'แตกฉาน' },
-    { id: '40294', firstName: 'ภรภัทร',      lastName: 'ไชยยงยศ' },
-    { id: '40352', firstName: 'วิภาดา',     lastName: 'แสนสนั่น' },
-    { id: '40363', firstName: 'ศศินิภา',     lastName: 'โปธาตุ' },
-    { id: '40376', firstName: 'ศุภรดา',     lastName: 'ศิริบรรพต' },
-    { id: '40380', firstName: 'ศุภิสรา',     lastName: 'แก้วมา' },
-    { id: '42242', firstName: 'ณัฏฐณิชา',    lastName: 'สมนึก' },
-    { id: '42260', firstName: 'นันท์นภัส',   lastName: 'ศรีชมภู' },
-    { id: '42283', firstName: 'ไพลิน',      lastName: 'ฤทธิ์สมบูรณ์' }
-];
-
-// ========== Autocomplete: ค้นหาสมาชิกจากชื่อ/นามสกุล ==========
-function handleMemberSearch(query) {
-    const list = document.getElementById('member-suggest-list');
-    const q = query.trim();
-
-    if (q.length === 0) {
-        // ซ่อนรายชื่อเมื่อยังไม่ได้พิมพ์ค้นหา
-        list.style.display = 'none';
-        return;
-    }
-
-    const filtered = MEMBERS.filter(m =>
-        m.firstName.includes(q) ||
-        m.lastName.includes(q) ||
-        (m.firstName + m.lastName).includes(q) ||
-        (m.firstName + ' ' + m.lastName).includes(q) ||
-        m.id.includes(q)
-    );
-    renderSuggestions(filtered);
-}
-
-function renderSuggestions(members) {
-    const list = document.getElementById('member-suggest-list');
-    if (members.length === 0) {
-        list.style.display = 'none';
-        return;
-    }
-    list.style.display = 'block';
-    list.innerHTML = members.map(m => `
-        <div onclick="selectMember('${m.id}', '${m.firstName}', '${m.lastName}')"
-             style="padding: 0.6rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border-color);
-                    transition: background 0.15s; font-size: 0.9rem;"
-             onmouseover="this.style.background='var(--accent-primary-alpha, rgba(236,72,153,0.12))'"
-             onmouseout="this.style.background='transparent'">
-            <span style="color: var(--text-primary); font-weight: 600;">${m.firstName} ${m.lastName}</span>
-        </div>
-    `).join('');
-}
-
-function selectMember(id, firstName, lastName) {
-    document.getElementById('login-member-name').value = firstName + ' ' + lastName;
-    document.getElementById('login-member-id').value = id;
-    document.getElementById('member-suggest-list').style.display = 'none';
-}
-
-// ปิด dropdown เมื่อคลิกที่อื่น
-document.addEventListener('click', function(e) {
-    const nameInput = document.getElementById('login-member-name');
-    const list = document.getElementById('member-suggest-list');
-    if (list && nameInput && !nameInput.contains(e.target) && !list.contains(e.target)) {
-        list.style.display = 'none';
-    }
-});
-
-
 // Helper: Format currency
 function formatCurrency(amount) {
     return '฿' + amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -204,169 +47,18 @@ function getDeptDisplayName(deptCode) {
     return DEPARTMENTS[deptCode] ? DEPARTMENTS[deptCode].name : deptCode || 'ไม่ระบุฝ่าย';
 }
 
-// Database-supported Save & Load Handlers (Firebase, IndexedDB & LocalStorage fallback)
+// Local Storage Handlers
 function saveToLocalStorage() {
-    // 1. Save to LocalStorage immediately
     localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(state));
-    
-    // 2. Save to IndexedDB (asynchronous database)
-    const request = indexedDB.open('pink_team_finance_db', 1);
-    request.onupgradeneeded = (e) => {
-        const dbObj = e.target.result;
-        if (!dbObj.objectStoreNames.contains('app_state')) {
-            dbObj.createObjectStore('app_state');
-        }
-    };
-    request.onsuccess = (e) => {
-        const dbObj = e.target.result;
-        try {
-            const tx = dbObj.transaction('app_state', 'readwrite');
-            const store = tx.objectStore('app_state');
-            store.put(state, 'current_state');
-        } catch(err) {
-            console.error("IndexedDB write error:", err);
-        }
-    };
-    
-    // 3. Save to Firebase Firestore if enabled
-    if (useFirebase && db) {
-        db.collection('settings').doc('pink_team_state').set(state)
-            .then(() => console.log("State synced to Firebase Firestore"))
-            .catch(err => console.error("Error syncing to Firebase:", err));
-    }
 }
 
-function loadFromDatabase(callback) {
-    if (useFirebase && db) {
-        console.log("Attempting to connect to Firebase Firestore...");
-        let hasLoaded = false;
-        
-        // ตั้งเวลา Timeout 3.5 วินาที หากเชื่อมต่อ Firebase ไม่สำเร็จจะดึงข้อมูลเครื่องโลคอลแทนทันที
-        const fbTimeout = setTimeout(() => {
-            if (!hasLoaded) {
-                console.warn("⚠️ Firebase connection timed out. Falling back to local database...");
-                // ปิดการใช้ Firebase ชั่วคราวเพื่อให้ระบบออฟไลน์ทำงานแทน
-                useFirebase = false; 
-                loadLocalData(callback);
-            }
-        }, 3500);
-
-        // โหลดข้อมูลจาก Firebase Firestore
-        db.collection('settings').doc('pink_team_state').get()
-            .then(doc => {
-                if (hasLoaded) return;
-                hasLoaded = true;
-                clearTimeout(fbTimeout);
-
-                if (doc.exists) {
-                    const currentUser = state.user;
-                    state = doc.data();
-                    state.user = currentUser;
-                    
-                    console.log("State loaded successfully from Firebase Firestore");
-                    setupFirebaseRealtimeListener();
-                    callback();
-                } else {
-                    console.log("Firebase state document not found, seeding with local data...");
-                    loadLocalData(() => {
-                        saveToLocalStorage(); 
-                        setupFirebaseRealtimeListener();
-                        callback();
-                    });
-                }
-            })
-            .catch(err => {
-                if (hasLoaded) return;
-                hasLoaded = true;
-                clearTimeout(fbTimeout);
-                console.error("Error loading from Firebase, falling back to local database:", err);
-                loadLocalData(callback);
-            });
-    } else {
-        loadLocalData(callback);
-    }
-}
-
-let firebaseListenerUnsubscribe = null;
-function setupFirebaseRealtimeListener() {
-    if (!useFirebase || !db) return;
-    
-    if (firebaseListenerUnsubscribe) {
-        firebaseListenerUnsubscribe();
-    }
-    
-    firebaseListenerUnsubscribe = db.collection('settings').doc('pink_team_state')
-        .onSnapshot(doc => {
-            if (doc.exists) {
-                const data = doc.data();
-                const currentUser = state.user;
-                state = data;
-                state.user = currentUser; // Maintain current session locally
-                
-                console.log("State synced in real-time from Firebase Firestore");
-                if (state.user) {
-                    renderAll(); // Renders the active dashboard views
-                }
-            }
-        }, err => {
-            console.error("Firebase realtime sync error:", err);
-        });
-}
-
-function loadLocalData(callback) {
-    const request = indexedDB.open('pink_team_finance_db', 1);
-    
-    request.onupgradeneeded = (e) => {
-        const dbObj = e.target.result;
-        if (!dbObj.objectStoreNames.contains('app_state')) {
-            dbObj.createObjectStore('app_state');
-        }
-    };
-    
-    request.onsuccess = (e) => {
-        const dbObj = e.target.result;
-        try {
-            const tx = dbObj.transaction('app_state', 'readonly');
-            const store = tx.objectStore('app_state');
-            const req = store.get('current_state');
-            
-            req.onsuccess = () => {
-                if (req.result) {
-                    state = req.result;
-                    console.log("State loaded successfully from IndexedDB Database");
-                    callback();
-                } else {
-                    loadFromLocalStorageFallback();
-                    callback();
-                }
-            };
-            req.onerror = () => {
-                loadFromLocalStorageFallback();
-                callback();
-            };
-        } catch(err) {
-            console.error("IndexedDB transaction error:", err);
-            loadFromLocalStorageFallback();
-            callback();
-        }
-    };
-    
-    request.onerror = (e) => {
-        console.error("IndexedDB open error during load:", e.target.error);
-        loadFromLocalStorageFallback();
-        callback();
-    };
-}
-
-function loadFromLocalStorageFallback() {
+function loadFromLocalStorage() {
     const saved = localStorage.getItem('pink_team_finance_state_v3');
     if (saved) {
         try {
             state = JSON.parse(saved);
-            console.log("State loaded from LocalStorage fallback");
-            saveToLocalStorage();
         } catch(e) {
-            console.error("Error parsing localStorage fallback, resetting...", e);
+            console.error("Error parsing localStorage state, resetting...", e);
             resetState();
         }
     } else {
@@ -385,9 +77,8 @@ function resetState() {
 
 // Initialize Application
 window.addEventListener('DOMContentLoaded', () => {
-    loadFromDatabase(() => {
-        checkSession();
-    });
+    loadFromLocalStorage();
+    checkSession();
 });
 
 // Check Session & Toggle between Login screen and Dashboard
@@ -445,7 +136,14 @@ function checkSession() {
         // Autofill forms and values
         autofillUserForms();
         
-
+        // Populate inputs in allocation fields (if logged in as president)
+        if (state.user.role === 'president') {
+            document.getElementById('alloc-stand').value = state.allocations.stand || 0;
+            document.getElementById('alloc-leaders').value = state.allocations.leaders || 0;
+            document.getElementById('alloc-parade').value = state.allocations.parade || 0;
+            document.getElementById('alloc-welfare').value = state.allocations.welfare || 0;
+            document.getElementById('alloc-props').value = state.allocations.props || 0;
+        }
         
         // Render UI
         renderAll();
@@ -468,6 +166,7 @@ function autofillUserForms() {
     
     const presidentWarning = document.getElementById('president-only-warning');
     const incomeFormInputs = document.querySelectorAll('#income-form input, #submit-income-btn');
+    const allocationFormInputs = document.querySelectorAll('#allocation-form input, #submit-alloc-btn');
     const incomeActor = document.getElementById('inc-actor');
     
     if (state.user.role === 'purchaser') {
@@ -480,9 +179,10 @@ function autofillUserForms() {
         requestFormWarning.style.display = 'none';
         submitRequestBtn.removeAttribute('disabled');
         
-        // Disable income panel for members
+        // Disable income and allocation panels for members
         presidentWarning.style.display = 'block';
         incomeFormInputs.forEach(el => el.setAttribute('disabled', 'true'));
+        allocationFormInputs.forEach(el => el.setAttribute('disabled', 'true'));
         if (incomeActor) incomeActor.value = '';
     } else {
         // President mode
@@ -494,9 +194,10 @@ function autofillUserForms() {
         requestFormWarning.style.display = 'block';
         submitRequestBtn.setAttribute('disabled', 'true');
         
-        // Enable income panel for president
+        // Enable income and allocation panels for president
         presidentWarning.style.display = 'none';
         incomeFormInputs.forEach(el => el.removeAttribute('disabled'));
+        allocationFormInputs.forEach(el => el.removeAttribute('disabled'));
         if (incomeActor) incomeActor.value = state.user.name;
     }
 }
@@ -526,41 +227,22 @@ function switchLoginTab(type) {
 function handleMemberLogin(event) {
     event.preventDefault();
     const name = document.getElementById('login-member-name').value.trim();
-    const memberId = document.getElementById('login-member-id').value.trim();
-    const enteredCode = document.getElementById('login-member-code').value.trim();
     const dept = document.getElementById('login-member-dept').value;
-    const codeError = document.getElementById('member-code-error');
-
+    
     if (!name) return;
-
-    // ต้องเลือกชื่อจาก list
-    if (!memberId) {
-        alert('กรุณาเลือกชื่อจากรายชื่อที่แนะนำ');
-        document.getElementById('login-member-name').focus();
-        return;
-    }
-
-    // ตรวจสอบรหัสประจำตัว
-    if (enteredCode !== memberId) {
-        codeError.style.display = 'block';
-        document.getElementById('login-member-code').focus();
-        return;
-    }
-
-    codeError.style.display = 'none';
-
+    
     state.user = {
-        id: memberId,
         name: name,
         department: dept,
         role: 'purchaser'
     };
-
+    
     saveToLocalStorage();
     checkSession();
+    
+    // Switch to request reimbursement tab
     switchTab('request-view');
 }
-
 
 // Handle President Login
 function handlePresidentLogin(event) {
@@ -656,26 +338,42 @@ function getDepartmentBudgetDetails(deptCode) {
     return { allocated, spent, remaining };
 }
 
-// Render department budget spent amounts
+// Render department budget bars
 function renderDepartmentAllocations() {
     const container = document.getElementById('department-budget-list');
     container.innerHTML = '';
     
     Object.keys(DEPARTMENTS).forEach(deptKey => {
         const dept = DEPARTMENTS[deptKey];
-        const { spent } = getDepartmentBudgetDetails(deptKey);
+        const { allocated, spent, remaining } = getDepartmentBudgetDetails(deptKey);
+        
+        let percentage = allocated > 0 ? (spent / allocated) * 100 : 0;
+        percentage = Math.min(percentage, 100); // Caps progress bar at 100%
+        
+        // Color warning if budget is running low (over 85%) or exceeded (100%)
+        let progressColor = 'var(--accent-primary)';
+        if (spent > allocated) progressColor = 'var(--accent-danger)';
+        else if (percentage > 85) progressColor = 'var(--accent-warning)';
+        else progressColor = dept.color;
         
         const block = document.createElement('div');
         block.className = 'dept-progress-block';
         block.innerHTML = `
-            <div class="progress-header" style="justify-content: space-between; align-items: center; font-size: 0.95rem;">
+            <div class="progress-header">
                 <span class="progress-title" style="color: ${dept.color};">
                     <span class="dept-dot" style="background-color: ${dept.color};"></span>
                     ${dept.name}
                 </span>
-                <span class="progress-values" style="color: var(--text-primary); font-weight: 500;">
-                    ใช้ไป <strong>${formatCurrency(spent)}</strong>
+                <span class="progress-values">
+                    ใช้ไป <strong>${formatCurrency(spent)}</strong> / โควตา ${formatCurrency(allocated)}
                 </span>
+            </div>
+            <div class="progress-outer-bar">
+                <div class="progress-inner-bar" style="width: ${percentage}%; background-color: ${progressColor};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">
+                <span>คงเหลือ: <strong style="color: ${remaining >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'}">${formatCurrency(remaining)}</strong></span>
+                <span>${percentage.toFixed(1)}%</span>
             </div>
         `;
         container.appendChild(block);
@@ -686,19 +384,16 @@ function renderDepartmentAllocations() {
 function checkFormBudgetWarning() {
     const amountVal = parseFloat(document.getElementById('req-amount').value);
     const warningDiv = document.getElementById('form-budget-warning');
+    const warningTextSpan = document.getElementById('warning-dept-bal');
     
     if (!amountVal || state.user.role !== 'purchaser') {
         warningDiv.style.display = 'none';
         return;
     }
     
-    const approvedExpenses = state.requests
-        .filter(req => req.status === 'approved')
-        .reduce((acc, curr) => acc + curr.amount, 0);
-    const totalIncome = state.incomes.reduce((acc, curr) => acc + curr.amount, 0);
-    const remainingBalance = totalIncome - approvedExpenses;
+    const { remaining } = getDepartmentBudgetDetails(state.user.department);
     
-    if (amountVal > remainingBalance) {
+    if (amountVal > remaining) {
         warningDiv.style.display = 'block';
     } else {
         warningDiv.style.display = 'none';
@@ -789,15 +484,11 @@ function renderPendingQueue() {
         const card = document.createElement('div');
         card.className = 'request-card';
         
-        // Show Warning Badge if exceeds remaining total treasury budget
-        const approvedExpenses = state.requests
-            .filter(r => r.status === 'approved')
-            .reduce((acc, curr) => acc + curr.amount, 0);
-        const totalIncome = state.incomes.reduce((acc, curr) => acc + curr.amount, 0);
-        const remainingBalance = totalIncome - approvedExpenses;
-        const isOverBudget = req.amount > remainingBalance;
+        // Show Warning Badge if exceeds remaining budget allocation
+        const { remaining } = getDepartmentBudgetDetails(req.department);
+        const isOverBudget = req.amount > remaining;
         const budgetWarningBadge = isOverBudget
-            ? `<span class="badge badge-rejected" style="margin-left:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> เกินงบคลัง</span>`
+            ? `<span class="badge badge-rejected" style="margin-left:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> เกินงบฝ่าย</span>`
             : '';
         
         const userActionButtons = state.user.role === 'president'
@@ -1064,7 +755,43 @@ function handleIncomeSubmit(event) {
     alert('บันทึกยอดเงินรับเข้าคลังเรียบร้อย!');
 }
 
-// Quota allocation features removed as per configuration updates
+// Handle Allocations adjustments
+function handleAllocationSubmit(event) {
+    event.preventDefault();
+    
+    if (!state.user || state.user.role !== 'president') {
+        return;
+    }
+    
+    const stand = parseFloat(document.getElementById('alloc-stand').value) || 0;
+    const leaders = parseFloat(document.getElementById('alloc-leaders').value) || 0;
+    const parade = parseFloat(document.getElementById('alloc-parade').value) || 0;
+    const welfare = parseFloat(document.getElementById('alloc-welfare').value) || 0;
+    const props = parseFloat(document.getElementById('alloc-props').value) || 0;
+    
+    // Check if total allocated exceeds total budget in hand
+    const totalIncome = state.incomes.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalAllocated = stand + leaders + parade + welfare + props;
+    
+    if (totalAllocated > totalIncome) {
+        const confirmOverAlloc = confirm(`คำเตือน: ยอดจัดสรรรวมทั้งหมด (${formatCurrency(totalAllocated)}) สูงกว่ายอดเงินคลังรวมที่สีมีอยู่ (${formatCurrency(totalIncome)})\nต้องการยืนยันบันทึกโควตานี้หรือไม่? (งบรายฝ่ายอาจจะติดลบ/ไม่พอจริงในภายหลัง)`);
+        if (!confirmOverAlloc) return;
+    }
+    
+    state.allocations = { stand, leaders, parade, welfare, props };
+    
+    state.logs.push({
+        id: 'log-' + Date.now(),
+        date: new Date().toISOString(),
+        type: 'income',
+        desc: `จัดสรร/ปรับปรุงโควตางบประมาณรายฝ่าย (รวมจัดสรร: ฿${totalAllocated.toLocaleString('th-TH', { minimumFractionDigits: 2 })})`,
+        actor: state.user.name
+    });
+    
+    saveToLocalStorage();
+    renderAll();
+    alert('บันทึกและปรับปรุงยอดโควตาจัดสรรฝ่ายย่อยสำเร็จ!');
+}
 
 // View Full Size Image
 function viewImage(imgSrc) {
