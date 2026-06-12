@@ -186,8 +186,15 @@ function getDeptDisplayName(deptCode) {
 
 // Database-supported Save & Load Handlers (Firebase, IndexedDB & LocalStorage fallback)
 function saveToLocalStorage() {
-    // 1. Save to LocalStorage immediately
-    localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(state));
+    // 1. Save to LocalStorage immediately with try-catch to handle quota limits
+    try {
+        localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(state));
+    } catch (e) {
+        console.error("LocalStorage save failed:", e);
+        if (e.name === 'QuotaExceededError' || e.code === 22 || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+            alert("⚠️ บันทึกข้อมูลลงเบราว์เซอร์ไม่สำเร็จเนื่องจากขนาดรูปภาพใหญ่เกินขีดจำกัด (Quota Exceeded) ระบบจะพยายามบันทึกลงฐานข้อมูลสำรอง IndexedDB แทน");
+        }
+    }
     
     // 2. Save to IndexedDB (asynchronous database)
     try {
