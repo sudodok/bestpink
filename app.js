@@ -98,13 +98,15 @@ function checkSession() {
         
         let roleDisplay = '';
         const tabNav = document.querySelector('.tab-navigation');
+        const metricsGrid = document.querySelector('.metrics-grid');
         
         if (state.user.role === 'president') {
             roleDisplay = `<i class="fa-solid fa-crown"></i> ประธานสวัสดิการ`;
             document.getElementById('user-avatar').style.background = 'var(--accent-warning)';
             
-            // President: Show navigation, but hide the "Request" tab button
+            // President: Show navigation and financial metrics
             tabNav.style.display = 'flex';
+            metricsGrid.style.display = '';
             document.getElementById('tab-request').style.display = 'none';
             document.getElementById('tab-dashboard').style.display = '';
             document.getElementById('tab-pending').style.display = '';
@@ -116,8 +118,9 @@ function checkSession() {
             roleDisplay = getDeptDisplayName(state.user.department);
             document.getElementById('user-avatar').style.background = 'var(--accent-primary)';
             
-            // Member: Hide navigation bar completely (they only do Request Reimbursement)
+            // Member: Hide navigation bar and financial metrics completely
             tabNav.style.display = 'none';
+            metricsGrid.style.display = 'none';
             
             // Default view for Member
             switchTab('request-view');
@@ -383,7 +386,6 @@ function checkFormBudgetWarning() {
     const { remaining } = getDepartmentBudgetDetails(state.user.department);
     
     if (amountVal > remaining) {
-        warningTextSpan.textContent = formatCurrency(remaining);
         warningDiv.style.display = 'block';
     } else {
         warningDiv.style.display = 'none';
