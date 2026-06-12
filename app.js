@@ -20,7 +20,8 @@ let state = {
         leaders: 0,
         parade: 0,
         welfare: 0,
-        props: 0
+        props: 0,
+        sports: 0
     },
     requests: [],        // [{id, name, department, item, amount, category, memo, receipt, productPhoto, qrcode, transferSlip, status, rejectReason, approvedBy, date}]
     logs: []             // [{id, date, type, desc, actor}]
@@ -32,7 +33,8 @@ const DEPARTMENTS = {
     leaders: { name: '💃 ฝ่ายเชียร์ลีดเดอร์', color: 'var(--dept-leaders)' },
     parade: { name: '🎺 ฝ่ายขบวนพาเหรด', color: 'var(--dept-parade)' },
     welfare: { name: '🍱 ฝ่ายสวัสดิการและอาหาร', color: 'var(--dept-welfare)' },
-    props: { name: '🎭 ฝ่ายอุปกรณ์และฉาก', color: 'var(--dept-props)' }
+    props: { name: '🎭 ฝ่ายอุปกรณ์และฉาก', color: 'var(--dept-props)' },
+    sports: { name: '👟 ฝ่ายนักกีฬา', color: 'var(--dept-sports)' }
 };
 
 // ========== รายชื่อสมาชิกคณะสีชมพู ==========
@@ -358,7 +360,7 @@ function loadFromLocalStorageFallback() {
 function resetState() {
     state.user = null;
     state.incomes = [];
-    state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0 };
+    state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
     state.requests = [];
     state.logs = [];
     saveToLocalStorage();
@@ -800,40 +802,63 @@ function renderPendingQueue() {
                </div>` 
             : '';
 
-        card.innerHTML = `
-            <div class="card-header">
-                <div>
-                    <span class="dept-tag dept-${req.department}"><span class="dept-dot"></span>${getDeptDisplayName(req.department)}</span>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">${formatDateTime(req.date)}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div class="card-amount">${formatCurrency(req.amount)}</div>
-                    ${budgetWarningBadge}
-                </div>
-            </div>
-            
-            <div class="card-body">
-                <div>สินค้า: <span>${req.item}</span></div>
-                <div>ผู้ขอเบิก: <span>${req.name}</span></div>
-                ${memoDisplay}
+                const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
+                const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
                 
-                <div class="card-images-preview-3way">
-                    <div>
-                        <div style="font-size: 0.7rem; margin-bottom: 2px; color: var(--text-muted); text-align:center;">1. ใบเสร็จ</div>
-                        <img src="${req.receipt || MOCK_RECEIPT_SVG}" onclick="viewImage('${req.receipt || MOCK_RECEIPT_SVG}')" alt="Receipt">
+                const receiptsHtml = receiptsList.map((src, i) => `
+                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
+                        <img src="${src}" onclick="viewImage('${src}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Receipt ${i+1}">
                     </div>
-                    <div>
-                        <div style="font-size: 0.7rem; margin-bottom: 2px; color: var(--text-muted); text-align:center;">2. รูปสินค้า</div>
-                        <img src="${req.productPhoto || MOCK_PRODUCT_SVG}" onclick="viewImage('${req.productPhoto || MOCK_PRODUCT_SVG}')" alt="Product">
+                `).join('');
+                
+                const productsHtml = productsList.map((src, i) => `
+                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
+                        <img src="${src}" onclick="viewImage('${src}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Product ${i+1}">
                     </div>
-                    <div>
-                        <div style="font-size: 0.7rem; margin-bottom: 2px; color: var(--text-muted); text-align:center;">3. QR Code</div>
-                        <img src="${req.qrcode || MOCK_QRCODE_SVG}" onclick="viewImage('${req.qrcode || MOCK_QRCODE_SVG}')" alt="QR Code">
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <span class="dept-tag dept-${req.department}"><span class="dept-dot"></span>${getDeptDisplayName(req.department)}</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">${formatDateTime(req.date)}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="card-amount">${formatCurrency(req.amount)}</div>
+                            ${budgetWarningBadge}
+                        </div>
                     </div>
-                </div>
-            </div>
-            ${userActionButtons}
-        `;
+                    
+                    <div class="card-body">
+                        <div>สินค้า: <span>${req.item}</span></div>
+                        <div>ผู้ขอเบิก: <span>${req.name}</span></div>
+                        ${memoDisplay}
+                        
+                        <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">📄 ใบเสร็จ (${receiptsList.length} รูป):</div>
+                                <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                                    ${receiptsHtml}
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">🛍️ รูปสินค้า (${productsList.length} รูป):</div>
+                                <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                                    ${productsHtml}
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">📱 QR Code รับเงิน:</div>
+                                <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
+                                        <img src="${req.qrcode || MOCK_QRCODE_SVG}" onclick="viewImage('${req.qrcode || MOCK_QRCODE_SVG}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="QR Code">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ${userActionButtons}
+                `;
         container.appendChild(card);
     });
 }
@@ -864,18 +889,29 @@ function renderLogsList() {
         if (log.requestId) {
             const req = state.requests.find(r => r.id === log.requestId);
             if (req) {
+                const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
+                const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
+                
+                let receiptsThumbs = receiptsList.map(src => `
+                    <img src="${src}" class="log-img-thumb" onclick="viewImage('${src}')">
+                `).join('');
+                
+                let productsThumbs = productsList.map(src => `
+                    <img src="${src}" class="log-img-thumb" onclick="viewImage('${src}')">
+                `).join('');
+
                 imageRowMarkup = `
                     <div class="log-thumbs-row">
                         <div class="log-thumb-wrapper">
-                            <img src="${req.receipt}" class="log-img-thumb" onclick="viewImage('${req.receipt}')">
+                            <div style="display:flex; gap:2px; flex-wrap:wrap; margin-bottom:2px;">${receiptsThumbs}</div>
                             <span>1. ใบเสร็จ</span>
                         </div>
                         <div class="log-thumb-wrapper">
-                            <img src="${req.productPhoto}" class="log-img-thumb" onclick="viewImage('${req.productPhoto}')">
+                            <div style="display:flex; gap:2px; flex-wrap:wrap; margin-bottom:2px;">${productsThumbs}</div>
                             <span>2. สินค้า</span>
                         </div>
                         <div class="log-thumb-wrapper">
-                            <img src="${req.qrcode}" class="log-img-thumb" onclick="viewImage('${req.qrcode}')">
+                            <img src="${req.qrcode || MOCK_QRCODE_SVG}" class="log-img-thumb" onclick="viewImage('${req.qrcode || MOCK_QRCODE_SVG}')">
                             <span>3. QR รับเงิน</span>
                         </div>
                         ${req.transferSlip ? `
@@ -907,14 +943,86 @@ function triggerUpload(elemId) {
     document.getElementById(elemId).click();
 }
 
-// Image File preview loader
-function handleImagePreview(input, previewId) {
+// Draft State for reimbursement request uploads
+let requestDraftImages = {
+    receipts: [],
+    productPhotos: [],
+    qrcode: ""
+};
+
+// Multiple Image File preview loader
+function handleMultipleImagePreview(input, listId, type) {
+    const files = Array.from(input.files);
+    let loadedCount = 0;
+    
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const dataUrl = e.target.result;
+            if (type === 'receipt') {
+                requestDraftImages.receipts.push(dataUrl);
+            } else if (type === 'product') {
+                requestDraftImages.productPhotos.push(dataUrl);
+            }
+            loadedCount++;
+            if (loadedCount === files.length) {
+                renderDraftImages(listId, type);
+                input.value = ''; // Reset input to allow re-uploading same file
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Render drafts
+function renderDraftImages(listId, type) {
+    const listContainer = document.getElementById(listId);
+    listContainer.innerHTML = '';
+    
+    const arr = type === 'receipt' ? requestDraftImages.receipts : requestDraftImages.productPhotos;
+    
+    arr.forEach((src, idx) => {
+        const item = document.createElement('div');
+        item.style.position = 'relative';
+        item.style.width = '64px';
+        item.style.height = '64px';
+        item.style.borderRadius = '0.35rem';
+        item.style.border = '1px solid var(--border-color)';
+        item.style.overflow = 'hidden';
+        
+        item.innerHTML = `
+            <img src="${src}" style="width:100%; height:100%; object-fit:cover;">
+            <button type="button" onclick="removeDraftImage('${listId}', '${type}', ${idx})" style="
+                position:absolute; top:-2px; right:-2px;
+                background:var(--accent-danger); color:white;
+                border:none; border-radius:50%; width:18px; height:18px;
+                font-size:10px; cursor:pointer; display:flex;
+                align-items:center; justify-content:center; line-height:1;
+            ">&times;</button>
+        `;
+        listContainer.appendChild(item);
+    });
+}
+
+// Remove single draft image
+function removeDraftImage(listId, type, index) {
+    if (type === 'receipt') {
+        requestDraftImages.receipts.splice(index, 1);
+    } else if (type === 'product') {
+        requestDraftImages.productPhotos.splice(index, 1);
+    }
+    renderDraftImages(listId, type);
+}
+
+// Single QR Code preview loaders
+function handleQrcodePreview(input, previewId) {
     const file = input.files[0];
     const previewContainer = document.getElementById(previewId);
     
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
+            requestDraftImages.qrcode = e.target.result;
             const img = previewContainer.querySelector('img');
             img.src = e.target.result;
             previewContainer.style.display = 'block';
@@ -923,10 +1031,10 @@ function handleImagePreview(input, previewId) {
     }
 }
 
-// Remove Previews
-function removeImage(event, fileInputId, previewId) {
+function removeQrcodeImage(event, fileInputId, previewId) {
     event.stopPropagation();
     document.getElementById(fileInputId).value = '';
+    requestDraftImages.qrcode = '';
     const container = document.getElementById(previewId);
     container.style.display = 'none';
     container.querySelector('img').src = '';
@@ -949,13 +1057,9 @@ function handleRequestSubmit(event) {
     const category = 'สปอร์ตเดย์'; // Default fallback
     const memo = document.getElementById('req-memo').value.trim();
     
-    const receiptImg = document.getElementById('receipt-preview').querySelector('img').src;
-    const productImg = document.getElementById('product-preview').querySelector('img').src;
-    const qrcodeImg = document.getElementById('qrcode-preview').querySelector('img').src;
-    
-    const finalReceipt = receiptImg || MOCK_RECEIPT_SVG;
-    const finalProduct = productImg || MOCK_PRODUCT_SVG;
-    const finalQrcode = qrcodeImg || MOCK_QRCODE_SVG;
+    const finalReceipts = requestDraftImages.receipts.length > 0 ? [...requestDraftImages.receipts] : [MOCK_RECEIPT_SVG];
+    const finalProducts = requestDraftImages.productPhotos.length > 0 ? [...requestDraftImages.productPhotos] : [MOCK_PRODUCT_SVG];
+    const finalQrcode = requestDraftImages.qrcode || MOCK_QRCODE_SVG;
     
     const reqId = 'req-' + Date.now();
     const newRequest = {
@@ -966,8 +1070,11 @@ function handleRequestSubmit(event) {
         amount: amount,
         category: category,
         memo: memo,
-        receipt: finalReceipt,
-        productPhoto: finalProduct,
+        receipts: finalReceipts,
+        productPhotos: finalProducts,
+        // Backward compatibility properties for single images
+        receipt: finalReceipts[0],
+        productPhoto: finalProducts[0],
         qrcode: finalQrcode,
         transferSlip: null,
         status: 'pending',
@@ -991,12 +1098,15 @@ function handleRequestSubmit(event) {
     saveToLocalStorage();
     renderAll();
     
-    // Reset Form
+    // Reset Form and Draft State
     document.getElementById('reimbursement-form').reset();
-    document.getElementById('receipt-preview').style.display = 'none';
-    document.getElementById('receipt-preview').querySelector('img').src = '';
-    document.getElementById('product-preview').style.display = 'none';
-    document.getElementById('product-preview').querySelector('img').src = '';
+    requestDraftImages = {
+        receipts: [],
+        productPhotos: [],
+        qrcode: ""
+    };
+    document.getElementById('receipt-preview-list').innerHTML = '';
+    document.getElementById('product-preview-list').innerHTML = '';
     document.getElementById('qrcode-preview').style.display = 'none';
     document.getElementById('qrcode-preview').querySelector('img').src = '';
     

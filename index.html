@@ -88,13 +88,14 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="login-member-dept">ฝ่ายงานที่รับผิดชอบ</label>
+                    <label for="login-member-dept">ประเภทสินค้า / ฝ่ายงานที่รับผิดชอบ</label>
                     <select id="login-member-dept" class="form-control" required>
-                        <option value="stand">🎨 ฝ่ายสแตนด์เชียร์ (Stand Cheer)</option>
-                        <option value="leaders">💃 ฝ่ายเชียร์ลีดเดอร์ (Cheerleaders)</option>
-                        <option value="parade">🎺 ฝ่ายขบวนพาเหรด (Parade)</option>
-                        <option value="welfare">🍱 ฝ่ายสวัสดิการและอาหาร (Welfare & Catering)</option>
-                        <option value="props">🎭 ฝ่ายอุปกรณ์และฉาก (Props & Stage)</option>
+                        <option value="stand">🎨 อุปกรณ์สแตนด์เชียร์ (สี, พู่เชียร์, กระดาษบอร์ด, ท่อ PVC)</option>
+                        <option value="leaders">💃 อุปกรณ์เชียร์ลีดเดอร์ (ชุดลีด, เครื่องสำอาง, ค่าทำผม, ถุงน่อง)</option>
+                        <option value="parade">🎺 ตกแต่งขบวนพาเหรด (ค่าเช่าชุด, ป้ายชื่อคณะ, ดอกไม้, เมคอัพ)</option>
+                        <option value="welfare">🍱 สวัสดิการอาหาร/น้ำดื่ม (ข้าวกล่อง, น้ำแข็ง, ยาปฐมพยาบาล)</option>
+                        <option value="props">🎭 วัสดุก่อสร้างฉาก/อุปกรณ์ (ไม้โครง, ไม้อัด, สีทาฉาก, ตะปู, อุปกรณ์ช่าง)</option>
+                        <option value="sports">👟 สวัสดิการนักกีฬา (เสื้อแข่ง, ผ้าเทปพันกล้ามเนื้อ, อุปกรณ์กีฬา, เกลือแร่)</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
@@ -247,44 +248,38 @@
                             <i class="fa-solid fa-triangle-exclamation"></i> คำเตือน: จำนวนเงินที่ขอเบิกนี้เกินกว่างบประมาณคงเหลือในคลังสวัสดิการรวม
                         </div>
 
-                        <!-- Upload Grid with 3 uploads -->
+                        <!-- Upload Grid with Multiple Photo uploads -->
                         <div class="form-group"><label>แนบเอกสารหลักฐาน (รองรับรูปภาพ)</label></div>
                         <div class="image-upload-grid">
                             <div class="form-group">
-                                <label style="font-size: 0.8rem;">1. รูปใบเสร็จรับเงิน (Receipt) *</label>
+                                <label style="font-size: 0.8rem;">1. รูปใบเสร็จรับเงิน (Receipt) * (ใส่ได้หลายรูป)</label>
                                 <div class="upload-container small-container" onclick="triggerUpload('upload-receipt')">
                                     <i class="fa-solid fa-file-image upload-icon"></i>
-                                    <p>อัปโหลดใบเสร็จ</p>
-                                    <input type="file" id="upload-receipt" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'receipt-preview')">
-                                    <div id="receipt-preview" class="upload-preview">
-                                        <img src="" alt="Receipt Preview">
-                                        <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-receipt', 'receipt-preview')">&times;</button>
-                                    </div>
+                                    <p>กดเพื่อแนบรูปใบเสร็จ</p>
+                                    <input type="file" id="upload-receipt" accept="image/*" multiple style="display: none;" onchange="handleMultipleImagePreview(this, 'receipt-preview-list', 'receipt')">
                                 </div>
+                                <div id="receipt-preview-list" class="multi-upload-preview-list" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem;"></div>
                             </div>
 
                             <div class="form-group">
-                                <label style="font-size: 0.8rem;">2. รูปสินค้าที่ซื้อ (Product) *</label>
+                                <label style="font-size: 0.8rem;">2. รูปสินค้าที่ซื้อ (Product) * (ใส่ได้หลายรูป)</label>
                                 <div class="upload-container small-container" onclick="triggerUpload('upload-product')">
                                     <i class="fa-solid fa-camera upload-icon"></i>
-                                    <p>อัปโหลดรูปสินค้า</p>
-                                    <input type="file" id="upload-product" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'product-preview')">
-                                    <div id="product-preview" class="upload-preview">
-                                        <img src="" alt="Product Preview">
-                                        <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-product', 'product-preview')">&times;</button>
-                                    </div>
+                                    <p>กดเพื่อแนบรูปสินค้า</p>
+                                    <input type="file" id="upload-product" accept="image/*" multiple style="display: none;" onchange="handleMultipleImagePreview(this, 'product-preview-list', 'product')">
                                 </div>
+                                <div id="product-preview-list" class="multi-upload-preview-list" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem;"></div>
                             </div>
 
                             <div class="form-group">
-                                <label style="font-size: 0.8rem;">3. QR Code รับเงิน (QR) *</label>
+                                <label style="font-size: 0.8rem;">3. QR Code รับเงิน (QR) * (ใบเบิกละ 1 รูป)</label>
                                 <div class="upload-container small-container" onclick="triggerUpload('upload-qrcode')">
                                     <i class="fa-solid fa-qrcode upload-icon"></i>
                                     <p>อัปโหลด QR Code</p>
-                                    <input type="file" id="upload-qrcode" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'qrcode-preview')">
+                                    <input type="file" id="upload-qrcode" accept="image/*" style="display: none;" onchange="handleQrcodePreview(this, 'qrcode-preview')">
                                     <div id="qrcode-preview" class="upload-preview">
                                         <img src="" alt="QR Code Preview">
-                                        <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-qrcode', 'qrcode-preview')">&times;</button>
+                                        <button type="button" class="remove-btn" onclick="removeQrcodeImage(event, 'upload-qrcode', 'qrcode-preview')">&times;</button>
                                     </div>
                                 </div>
                             </div>

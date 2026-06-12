@@ -32,6 +32,7 @@
     --dept-parade: #3b82f6;
     --dept-welfare: #f59e0b;
     --dept-props: #10b981;
+    --dept-sports: #06b6d4;
 }
 
 * {
@@ -693,6 +694,9 @@ tr:hover td {
 
 .dept-props { color: var(--dept-props); }
 .dept-props .dept-dot { background-color: var(--dept-props); }
+
+.dept-sports { color: var(--dept-sports); }
+.dept-sports .dept-dot { background-color: var(--dept-sports); }
 
 /* Department Progress Bars on Dashboard */
 .dept-progress-block {
