@@ -1,6 +1,6 @@
 // ========== OFFLINE DATABASE CONFIGURATION ==========
 const db = null;
-const useFirebase = false;
+let useFirebase = false;
 
 // Placeholder SVGs to use as mock default images
 const MOCK_RECEIPT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" style="background-color:%23f1f5f9;font-family:sans-serif;"><rect width="180" height="240" x="10" y="10" rx="5" fill="white" stroke="%23cbd5e1" stroke-width="2"/><line x1="25" y1="40" x2="175" y2="40" stroke="%23334155" stroke-width="2" stroke-dasharray="4"/><text x="25" y="65" fill="%231e293b" font-size="14" font-weight="bold">RECEIPT</text><text x="25" y="85" fill="%2364748b" font-size="10">Pink Team Sports Day</text><text x="25" y="120" fill="%23334155" font-size="11">Purchased Item</text><text x="25" y="140" fill="%2364748b" font-size="10">Tax invoice included</text><line x1="25" y1="180" x2="175" y2="180" stroke="%23cbd5e1" stroke-width="1"/><text x="25" y="205" fill="%231e293b" font-size="14" font-weight="bold">TOTAL</text><text x="110" y="205" fill="%23ec4899" font-size="14" font-weight="bold">Reimburse</text></svg>`;
@@ -960,6 +960,44 @@ function triggerUpload(elemId) {
     document.getElementById(elemId).click();
 }
 
+// Image compression utility
+function compressImage(file, maxWidth, maxHeight, quality, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Calculate new dimensions
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Export to JPEG with quality
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+            callback(compressedDataUrl);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
 // Draft State for reimbursement request uploads
 let requestDraftImages = {
     receipts: [],
@@ -967,27 +1005,26 @@ let requestDraftImages = {
     qrcode: ""
 };
 
-// Multiple Image File preview loader
+// Multiple Image File preview loader with compression
 function handleMultipleImagePreview(input, listId, type) {
     const files = Array.from(input.files);
+    if (files.length === 0) return;
+    
     let loadedCount = 0;
     
     files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const dataUrl = e.target.result;
+        compressImage(file, 1024, 1024, 0.7, (compressedDataUrl) => {
             if (type === 'receipt') {
-                requestDraftImages.receipts.push(dataUrl);
+                requestDraftImages.receipts.push(compressedDataUrl);
             } else if (type === 'product') {
-                requestDraftImages.productPhotos.push(dataUrl);
+                requestDraftImages.productPhotos.push(compressedDataUrl);
             }
             loadedCount++;
             if (loadedCount === files.length) {
                 renderDraftImages(listId, type);
                 input.value = ''; // Reset input to allow re-uploading same file
             }
-        };
-        reader.readAsDataURL(file);
+        });
     });
 }
 
@@ -1031,20 +1068,18 @@ function removeDraftImage(listId, type, index) {
     renderDraftImages(listId, type);
 }
 
-// Single QR Code preview loaders
+// Single QR Code preview loaders with compression
 function handleQrcodePreview(input, previewId) {
     const file = input.files[0];
     const previewContainer = document.getElementById(previewId);
     
     if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            requestDraftImages.qrcode = e.target.result;
+        compressImage(file, 800, 800, 0.7, (compressedDataUrl) => {
+            requestDraftImages.qrcode = compressedDataUrl;
             const img = previewContainer.querySelector('img');
-            img.src = e.target.result;
+            img.src = compressedDataUrl;
             previewContainer.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
+        });
     }
 }
 
@@ -1057,12 +1092,34 @@ function removeQrcodeImage(event, fileInputId, previewId) {
     container.querySelector('img').src = '';
 }
 
+// President Transfer Slip preview loader with compression
+function handleImagePreview(input, previewId) {
+    const file = input.files[0];
+    const previewContainer = document.getElementById(previewId);
+    
+    if (file) {
+        compressImage(file, 1024, 1024, 0.7, (compressedDataUrl) => {
+            const img = previewContainer.querySelector('img');
+            img.src = compressedDataUrl;
+            previewContainer.style.display = 'block';
+        });
+    }
+}
+
+function removeImage(event, fileInputId, previewId) {
+    event.stopPropagation();
+    document.getElementById(fileInputId).value = '';
+    const container = document.getElementById(previewId);
+    container.style.display = 'none';
+    container.querySelector('img').src = '';
+}
+
 // Handle Reimbursement Request Submit
 function handleRequestSubmit(event) {
     event.preventDefault();
     
     if (!state.user || state.user.role !== 'purchaser') {
-        alert('เฉพาะสมาชิกในสีปทุมชาติเท่านั้นที่มีสิทธิ์เบิกจ่ายเงิน');
+        alert('เฉพาะสมาชิกในสีชมพูเท่านั้นที่มีสิทธิ์เบิกจ่ายเงิน');
         return;
     }
     
