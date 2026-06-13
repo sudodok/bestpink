@@ -375,6 +375,16 @@ function resetState() {
 
 // Initialize Application
 window.addEventListener('DOMContentLoaded', () => {
+    // Force-clear login fields to override browser autofill (Chrome fills AFTER DOMContentLoaded)
+    setTimeout(() => {
+        const nameInput = document.getElementById('login-member-name');
+        const codeInput = document.getElementById('login-member-code');
+        const idInput = document.getElementById('login-member-id');
+        if (nameInput) nameInput.value = '';
+        if (codeInput) codeInput.value = '';
+        if (idInput) idInput.value = '';
+    }, 150);
+
     loadFromDatabase(() => {
         checkSession();
     });
