@@ -689,7 +689,13 @@ function checkSession() {
         const metricsGrid = document.querySelector('.metrics-grid');
         
         if (state.user.role === 'president') {
-            roleDisplay = `<i class="fa-solid fa-crown"></i> ประธานสวัสดิการ`;
+            if (state.user.username === 'admin') {
+                roleDisplay = `<i class="fa-solid fa-user-shield"></i> แอดมิน`;
+            } else if (state.user.username === 'km789') {
+                roleDisplay = `<i class="fa-solid fa-crown"></i> รองประธานสวัสดิการ`;
+            } else {
+                roleDisplay = `<i class="fa-solid fa-crown"></i> ประธานสวัสดิการ`;
+            }
             document.getElementById('user-avatar').style.background = 'var(--accent-warning)';
             
             // President: Show navigation and financial metrics, but hide request related tabs
@@ -752,7 +758,8 @@ function autofillUserForms() {
     // Autofill issue reporter info
     const issueReporterInput = document.getElementById('issue-reporter');
     if (issueReporterInput && state.user) {
-        issueReporterInput.value = `${state.user.name} (${state.user.role === 'president' ? 'ประธาน' : 'สมาชิก'})`;
+        const displayRoleName = state.user.username === 'admin' ? 'แอดมิน' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
+        issueReporterInput.value = `${state.user.name} (${displayRoleName})`;
     }
     
     const presidentSettingsPanel = document.getElementById('president-settings-panel');
@@ -875,9 +882,9 @@ function handlePresidentLogin(event) {
     ) {
         errorMsg.style.display = 'none';
         
-        const displayName = user === 'km789' 
-            ? 'รองประธานสวัสดิการ' 
-            : 'ประธานสวัสดิการ';
+        const displayName = user === 'admin'
+            ? 'แอดมิน'
+            : (user === 'km789' ? 'รองประธานสวัสดิการ' : 'ประธานสวัสดิการ');
             
         state.user = {
             username: user,
@@ -1785,7 +1792,7 @@ function handleIssueSubmit(event) {
     const category = document.getElementById('issue-category').value;
     const desc = document.getElementById('issue-desc').value.trim();
     const reporterName = state.user.name;
-    const reporterRole = state.user.role === 'president' ? 'ประธาน' : 'สมาชิก';
+    const reporterRole = state.user.username === 'admin' ? 'แอดมิน' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
     
     const newIssue = {
         id: 'issue-' + Date.now(),
@@ -1807,7 +1814,8 @@ function handleIssueSubmit(event) {
     // Reset Form
     document.getElementById('issue-report-form').reset();
     if (document.getElementById('issue-reporter')) {
-        document.getElementById('issue-reporter').value = `${state.user.name} (${state.user.role === 'president' ? 'ประธาน' : 'สมาชิก'})`;
+        const displayRoleName = state.user.username === 'admin' ? 'แอดมิน' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
+        document.getElementById('issue-reporter').value = `${state.user.name} (${displayRoleName})`;
     }
     
     alert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
