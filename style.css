@@ -988,18 +988,85 @@ tr:hover td {
 /* ==================== THEME STYLING ==================== */
 /* Light Theme Variables */
 :root.light-theme {
-    --bg-primary: #f8fafc;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #f1f5f9;
+    --bg-primary: #fdf8fa; /* Very soft rose-white background */
+    --bg-secondary: #ffffff; /* Clean white card backgrounds */
+    --bg-tertiary: #fff1f5; /* Soft rose-grey tint for read-only fields / table headers */
     
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
+    --text-primary: #3b071e; /* Extremely deep maroon-pink for high-contrast premium text */
+    --text-secondary: #853c5e; /* Rose wine color for subtext */
+    --text-muted: #a2788c; /* Dusty pinkish slate for muted text */
     
-    --border-color: rgba(236, 72, 153, 0.18);
-    --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-border: rgba(236, 72, 153, 0.15);
+    --border-color: rgba(236, 72, 153, 0.16);
+    --card-shadow: 0 12px 30px -10px rgba(236, 72, 153, 0.08);
+    --glass-bg: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(236, 72, 153, 0.12);
+}
+
+/* Light Theme Element Overrides */
+.light-theme th {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+.light-theme td {
+    color: var(--text-primary);
+}
+
+.light-theme .upload-container {
+    background: #fdf8fa !important;
+    border-color: var(--border-color);
+}
+
+.light-theme .form-control {
+    background-color: #ffffff !important;
+    border-color: rgba(236, 72, 153, 0.25) !important;
+    color: var(--text-primary) !important;
+}
+
+.light-theme .form-control:focus {
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15) !important;
+}
+
+.light-theme .form-control[readonly] {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+.light-theme .tab-btn {
+    color: var(--text-secondary);
+}
+
+.light-theme .tab-btn.active {
+    background: var(--accent-primary);
+    color: #ffffff;
+}
+
+.light-theme .tab-btn:hover:not(.active) {
+    background: rgba(236, 72, 153, 0.05);
+    color: var(--accent-primary);
+}
+
+.light-theme .metric-card {
+    background: #ffffff;
+    border: 1px solid rgba(236, 72, 153, 0.1);
+    box-shadow: var(--card-shadow);
+}
+
+.light-theme .panel-card {
+    box-shadow: var(--card-shadow);
+}
+
+.light-theme body {
+    background-image: radial-gradient(circle at 50% -20%, rgba(236, 72, 153, 0.15) 0%, rgba(253, 248, 250, 0) 70%) !important;
+}
+
+.light-theme .login-logo-icon {
+    background: rgba(236, 72, 153, 0.06) !important;
+}
+
+.light-theme .member-suggest-list div {
+    border-bottom-color: var(--border-color);
 }
 
 /* Smooth transition when toggling theme */
