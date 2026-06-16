@@ -428,29 +428,42 @@
                     <input type="hidden" id="manage-member-mode" value="add"> <!-- 'add' or 'edit' -->
                     <div class="form-row-2col">
                         <div class="form-group">
-                            <label for="manage-member-id">รหัสประจำตัว (รหัสผ่านเข้าเครื่อง)</label>
+                            <label for="manage-member-id">รหัสประจำตัว</label>
                             <input type="text" id="manage-member-id" class="form-control" placeholder="เช่น 40119" required>
                         </div>
+                        <div class="form-group">
+                            <label for="manage-member-room">ห้อง</label>
+                            <select id="manage-member-room" class="form-control" required>
+                                <option value="5/8">5/8</option>
+                                <option value="5/1">5/1</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row-2col" style="margin-top: 1rem;">
                         <div class="form-group">
                             <label for="manage-member-firstname">ชื่อจริง</label>
                             <input type="text" id="manage-member-firstname" class="form-control" placeholder="เช่น ธนโชติ" required>
                         </div>
-                    </div>
-                    <div class="form-row-2col">
                         <div class="form-group">
                             <label for="manage-member-lastname">นามสกุล</label>
                             <input type="text" id="manage-member-lastname" class="form-control" placeholder="เช่น แจ้งเลิศ" required>
                         </div>
-                        <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
-                            <button type="submit" id="btn-save-member" class="btn btn-primary" style="width: 100%;">
-                                <i class="fa-solid fa-plus-circle"></i> เพิ่มสมาชิกใหม่
-                            </button>
-                            <button type="button" id="btn-cancel-edit-member" class="btn" style="background: var(--bg-tertiary); display: none;" onclick="cancelEditMember()">
-                                ยกเลิก
-                            </button>
-                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="submit" id="btn-save-member" class="btn btn-primary" style="width: auto; min-width: 160px;">
+                            <i class="fa-solid fa-plus-circle"></i> เพิ่มสมาชิกใหม่
+                        </button>
+                        <button type="button" id="btn-cancel-edit-member" class="btn" style="background: var(--bg-tertiary); display: none; width: auto;" onclick="cancelEditMember()">
+                            ยกเลิก
+                        </button>
                     </div>
                 </form>
+
+                <!-- Search Input for filtering members -->
+                <div style="margin-bottom: 1.25rem; position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                    <input type="text" id="admin-member-search" class="form-control" placeholder="ค้นหาโดยระบุ รหัส, ชื่อ-นามสกุล หรือห้อง..." style="padding-left: 2.5rem;" oninput="renderAdminMembersList()">
+                </div>
 
                 <!-- Members list table inside admin panel -->
                 <div style="max-height: 400px; overflow-y: auto;">
@@ -459,6 +472,7 @@
                             <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
                                 <th style="padding: 0.5rem;">รหัส</th>
                                 <th style="padding: 0.5rem;">ชื่อ-นามสกุล</th>
+                                <th style="padding: 0.5rem;">ห้อง</th>
                                 <th style="padding: 0.5rem; text-align: right;">การจัดการ</th>
                             </tr>
                         </thead>

@@ -63,78 +63,79 @@ const DEPARTMENTS = {
 
 // ========== รายชื่อสมาชิกคณะสีชมพู ==========
 const MEMBERS = [
-    // รายชื่อเดิม
-    { id: '40119', firstName: 'ธนโชติ',     lastName: 'แจ้งเลิศ' },
-    { id: '40134', firstName: 'ธรรมรัตน์',   lastName: 'อุดรศรี' },
-    { id: '40195', firstName: 'ปองคุณ',      lastName: 'อรรคชัยพานิช' },
-    { id: '42230', firstName: 'กฤษณ์',       lastName: 'ลือวัฒนานนท์' },
-    { id: '42235', firstName: 'คณิศร',       lastName: 'กิ่งกันคำ' },
-    { id: '42264', firstName: 'ปกรณ์เกียรติ', lastName: 'เคนจอม' },
-    { id: '42272', firstName: 'พงศกร',       lastName: 'อุดเวียง' },
-    { id: '42273', firstName: 'พชร',         lastName: 'จักรเงิน' },
-    { id: '42280', firstName: 'พีรพัฒน์',    lastName: 'แสนคำวัง' },
-    { id: '42281', firstName: 'พีรวัส',      lastName: 'วังหา' },
-    { id: '42303', firstName: 'อาทิตย์',     lastName: 'กาญจนกูล' },
-    { id: '39954', firstName: 'กฤตภรณ์',    lastName: 'พรินทรากูล' },
-    { id: '39976', firstName: 'กัญญาณัฐ',   lastName: 'สุขศิลปชัย' },
-    { id: '39979', firstName: 'กัญญารัตน์',   lastName: 'เรื่องขจร' },
-    { id: '39988', firstName: 'กาญจนา',     lastName: 'เหมืองจา' },
-    { id: '40037', firstName: 'ชนัญชิตา',   lastName: 'สายาจักร' },
-    { id: '40054', firstName: 'ชวิศา',      lastName: 'คงคารักษ์' },
-    { id: '40057', firstName: 'ชลลิสา',     lastName: 'คำปาแฝง' },
-    { id: '40088', firstName: 'ณัฐธิดา',    lastName: 'ไชยยอด' },
-    { id: '40104', firstName: 'ตามภรณ์',    lastName: 'ชัยชนะ' },
-    { id: '40109', firstName: 'ทักษพร',     lastName: 'อุดร' },
-    { id: '40112', firstName: 'ธนิตากานต์', lastName: 'ธนสาร' },
-    { id: '40147', firstName: 'ธิดารัตน์',  lastName: 'วิเชียรกันทา' },
-    { id: '40161', firstName: 'นันท์ชพร',   lastName: 'เสนากูล' },
-    { id: '40184', firstName: 'ปภาวรินทร์', lastName: 'บุตรเสน' },
-    { id: '40185', firstName: 'ปภาวรินทร์', lastName: 'วังอินทร์' },
-    { id: '40232', firstName: 'พรอนงค์',    lastName: 'ยาสุปิ' },
-    { id: '40244', firstName: 'พัทธ์ธิดา',  lastName: 'วาสนาโลก' },
-    { id: '40267', firstName: 'พิมพ์ลภัส',  lastName: 'วันมหาใจ' },
-    { id: '40318', firstName: 'มนัญชยา',    lastName: 'อินต๊ะวงศ์' },
-    { id: '40339', firstName: 'วรณัน',      lastName: 'อินต๊ะจัง' },
-    { id: '40359', firstName: 'ศกุลตลา',    lastName: 'คชปัญญา' },
-    { id: '40404', firstName: 'สุภนิตา',    lastName: 'ถาป้อม' },
-    { id: '40424', firstName: 'อัญชิษฐา',   lastName: 'วาปีศิริ' },
-    { id: '42240', firstName: 'ฐิตาภา',     lastName: 'คำน้ำปาด' },
-    { id: '42243', firstName: 'ณัฐกฤตา',    lastName: 'อุตสม' },
-    { id: '42250', firstName: 'ธมลวรรณ',    lastName: 'อินจันทร์' },
-    { id: '42276', firstName: 'พัทธ์ธีรา',  lastName: 'ประพัศรางค์' },
-    { id: '40281', firstName: 'วุฒินันท์',  lastName: 'นันทะไสย' },
-    { id: '42292', firstName: 'วนัชพร',     lastName: 'กาศสนุก' },
-    { id: '42932', firstName: 'ภิรพัชร',    lastName: 'หิรัตน์พันธุ์' },
+    // 5/1 (จากรูปภาพน้องอาม)
+    { id: '39967', firstName: 'กฤติธี',     lastName: 'แสนคำ',       room: '5/1' },
+    { id: '39998', firstName: 'เกียรติสกุล', lastName: 'กันกา',       room: '5/1' },
+    { id: '40019', firstName: 'จิรัฏฐ์',     lastName: 'บัตริยะ',     room: '5/1' },
+    { id: '40050', firstName: 'จยุตพงศ์',   lastName: 'ดีคำ',        room: '5/1' },
+    { id: '40059', firstName: 'ชิษณุพงศ์',   lastName: 'ทะจักร์',     room: '5/1' },
+    { id: '40206', firstName: 'ปาลปวีณ์',   lastName: 'สินมณี',      room: '5/1' },
+    { id: '40309', firstName: 'ภาวิต',      lastName: 'ภาสสัทธา',    room: '5/1' },
+    { id: '40338', firstName: 'วรนน',       lastName: 'สัจจะนรพันธ์', room: '5/1' },
+    { id: '40350', firstName: 'วิเชียรรัตน์',  lastName: 'ดอกแก้ว',     room: '5/1' },
+    { id: '39993', firstName: 'กิตพร',      lastName: 'เพชรพัฒนากุล', room: '5/1' },
+    { id: '40049', firstName: 'ชญาดา',      lastName: 'สมบูรณ์',     room: '5/1' },
+    { id: '40076', firstName: 'ณฤดี',       lastName: 'ศรีเจริญภากร',  room: '5/1' },
+    { id: '40087', firstName: 'ณัฐชยาน์',    lastName: 'แก้วกล้า',     room: '5/1' },
+    { id: '40092', firstName: 'ณัฐภัสสร',    lastName: 'ยศเลิศ',      room: '5/1' },
+    { id: '40122', firstName: 'ธนพร',      lastName: 'ใจยะ',       room: '5/1' },
+    { id: '40132', firstName: 'ธนิสตา',     lastName: 'สีอินทร์',     room: '5/1' },
+    { id: '40179', firstName: 'ปณิตา',      lastName: 'ถุงพลอย',     room: '5/1' },
+    { id: '40200', firstName: 'ปัทมพร',     lastName: 'กาดเกษม',     room: '5/1' },
+    { id: '40202', firstName: 'ปานปั้น',     lastName: 'นุชธิสาร',     room: '5/1' },
+    { id: '40245', firstName: 'พัทธนันท์',    lastName: 'คำลือ',       room: '5/1' },
+    { id: '40266', firstName: 'พิมพ์ลภัส',    lastName: 'แตกฉาน',      room: '5/1' },
+    { id: '40294', firstName: 'ภรภัทร',      lastName: 'ไชยยงยศ',     room: '5/1' },
+    { id: '40352', firstName: 'วิภาดา',     lastName: 'แสนสนั่น',     room: '5/1' },
+    { id: '40363', firstName: 'ศศินิภา',     lastName: 'โปธาตุ',      room: '5/1' },
+    { id: '40376', firstName: 'ศุภรดา',     lastName: 'ศิริบรรพต',    room: '5/1' },
+    { id: '40380', firstName: 'ศุภิสรา',     lastName: 'แก้วมา',      room: '5/1' },
+    { id: '42242', firstName: 'ณัฏฐณิชา',    lastName: 'สมนึก',       room: '5/1' },
+    { id: '42260', firstName: 'นันท์นภัส',   lastName: 'ศรีชมภู',     room: '5/1' },
+    { id: '42283', firstName: 'ไพลิน',      lastName: 'ฤทธิ์สมบูรณ์', room: '5/1' },
 
-    // รายชื่อใหม่เพิ่มเติม
-    { id: '39967', firstName: 'กฤติธี',     lastName: 'แสนคำ' },
-    { id: '39998', firstName: 'เกียรติสกุล', lastName: 'กันกา' },
-    { id: '40019', firstName: 'จิรัฏฐ์',     lastName: 'บัตริยะ' },
-    { id: '40050', firstName: 'ชยุตพงศ์',   lastName: 'ดีคำ' },
-    { id: '40059', firstName: 'ชิษณุพงศ์',   lastName: 'ทะจักร์' },
-    { id: '40309', firstName: 'ภาวิต',      lastName: 'ภาสสัทธา' },
-    { id: '40338', firstName: 'วรนน',       lastName: 'สัจจะนรพันธ์' },
-    { id: '40350', firstName: 'วิเชียรรัตน์',  lastName: 'ดอกแก้ว' },
-    { id: '39993', firstName: 'กิตพร',      lastName: 'เพชรพัฒนากุล' },
-    { id: '40049', firstName: 'ชยาดา',      lastName: 'สมบูรณ์' },
-    { id: '40076', firstName: 'ณฤดี',       lastName: 'ศรีเจริญภากร' },
-    { id: '40087', firstName: 'ณัฐธยาน์',    lastName: 'แก้วกล้า' },
-    { id: '40092', firstName: 'ณัฐภัสสร',    lastName: 'ยศเลิศ' },
-    { id: '40122', firstName: 'ธนพร',      lastName: 'ใจยะ' },
-    { id: '40132', firstName: 'ธนิสตา',     lastName: 'สีอินทร์' },
-    { id: '40179', firstName: 'ปณิตา',      lastName: 'ถุงพลอย' },
-    { id: '40200', firstName: 'ปัทมพร',     lastName: 'กาศเกษม' },
-    { id: '40202', firstName: 'ปานปั้น',     lastName: 'นุชธิสาร' },
-    { id: '40245', firstName: 'พัทธนันท์',    lastName: 'คำลือ' },
-    { id: '40266', firstName: 'พิมพ์ลภัส',    lastName: 'แตกฉาน' },
-    { id: '40294', firstName: 'ภรภัทร',      lastName: 'ไชยยงยศ' },
-    { id: '40352', firstName: 'วิภาดา',     lastName: 'แสนสนั่น' },
-    { id: '40363', firstName: 'ศศินิภา',     lastName: 'โปธาตุ' },
-    { id: '40376', firstName: 'ศุภรดา',     lastName: 'ศิริบรรพต' },
-    { id: '40380', firstName: 'ศุภิสรา',     lastName: 'แก้วมา' },
-    { id: '42242', firstName: 'ณัฏฐณิชา',    lastName: 'สมนึก' },
-    { id: '42260', firstName: 'นันท์นภัส',   lastName: 'ศรีชมภู' },
-    { id: '42283', firstName: 'ไพลิน',      lastName: 'ฤทธิ์สมบูรณ์' }
+    // 5/8 (รายชื่อคณะสีชมพูที่เหลือทั้งหมด)
+    { id: '40119', firstName: 'ธนโชติ',     lastName: 'แจ้งเลิศ',     room: '5/8' },
+    { id: '40134', firstName: 'ธรรมรัตน์',   lastName: 'อุดรศรี',      room: '5/8' },
+    { id: '40195', firstName: 'ปองคุณ',      lastName: 'อรรคชัยพานิช',  room: '5/8' },
+    { id: '42230', firstName: 'กฤษณ์',       lastName: 'ลือวัฒนานนท์', room: '5/8' },
+    { id: '42235', firstName: 'คณิศร',       lastName: 'กิ่งกันคำ',     room: '5/8' },
+    { id: '42264', firstName: 'ปกรณ์เกียรติ', lastName: 'เคนจอม',      room: '5/8' },
+    { id: '42272', firstName: 'พงศกร',       lastName: 'อุดเวียง',      room: '5/8' },
+    { id: '42273', firstName: 'พชร',         lastName: 'จักรเงิน',      room: '5/8' },
+    { id: '42280', firstName: 'พีรพัฒน์',    lastName: 'แสนคำวัง',     room: '5/8' },
+    { id: '42281', firstName: 'พีรวัส',      lastName: 'วังหา',       room: '5/8' },
+    { id: '42303', firstName: 'อาทิตย์',     lastName: 'กาญจนกูล',     room: '5/8' },
+    { id: '39954', firstName: 'กฤตภรณ์',    lastName: 'พรินทรากูล',   room: '5/8' },
+    { id: '39976', firstName: 'กัญญาณัฐ',   lastName: 'สุขศิลปชัย',    room: '5/8' },
+    { id: '39979', firstName: 'กัญญารัตน์',   lastName: 'เรื่องขจร',     room: '5/8' },
+    { id: '39988', firstName: 'กาญจนา',     lastName: 'เหมืองจา',     room: '5/8' },
+    { id: '40037', firstName: 'ชนัญชิตา',   lastName: 'สายาจักร',     room: '5/8' },
+    { id: '40054', firstName: 'ชวิศา',      lastName: 'คงคารักษ์',     room: '5/8' },
+    { id: '40057', firstName: 'ชลลิสา',     lastName: 'คำปาแฝง',     room: '5/8' },
+    { id: '40088', firstName: 'ณัฐธิดา',    lastName: 'ไชยยอด',      room: '5/8' },
+    { id: '40104', firstName: 'ตามภรณ์',    lastName: 'ชัยชนะ',      room: '5/8' },
+    { id: '40109', firstName: 'ทักษพร',     lastName: 'อุดร',        room: '5/8' },
+    { id: '40112', firstName: 'ธนิตากานต์', lastName: 'ธนสาร',       room: '5/8' },
+    { id: '40147', firstName: 'ธิดารัตน์',  lastName: 'วิเชียรกันทา',   room: '5/8' },
+    { id: '40161', firstName: 'นันท์ชพร',   lastName: 'เสนากูล',      room: '5/8' },
+    { id: '40184', firstName: 'ปภาวรินทร์', lastName: 'บุตรเสน',      room: '5/8' },
+    { id: '40185', firstName: 'ปภาวรินทร์', lastName: 'วังอินทร์',     room: '5/8' },
+    { id: '40232', firstName: 'พรอนงค์',    lastName: 'ยาสุปิ',       room: '5/8' },
+    { id: '40244', firstName: 'พัทธ์ธิดา',  lastName: 'วาสนาโลก',     room: '5/8' },
+    { id: '40267', firstName: 'พิมพ์ลภัส',  lastName: 'วันมหาใจ',     room: '5/8' },
+    { id: '40318', firstName: 'มนัญชยา',    lastName: 'อินต๊ะวงศ์',    room: '5/8' },
+    { id: '40339', firstName: 'วรณัน',      lastName: 'อินต๊ะจัง',     room: '5/8' },
+    { id: '40359', firstName: 'ศกุลตลา',    lastName: 'คชปัญญา',     room: '5/8' },
+    { id: '40404', firstName: 'สุภนิตา',    lastName: 'ถาป้อม',       room: '5/8' },
+    { id: '40424', firstName: 'อัญชิษฐา',   lastName: 'วาปีศิริ',      room: '5/8' },
+    { id: '42240', firstName: 'ฐิตาภา',     lastName: 'คำน้ำปาด',     room: '5/8' },
+    { id: '42243', firstName: 'ณัฐกฤตา',    lastName: 'อุตสม',       room: '5/8' },
+    { id: '42250', firstName: 'ธมลวรรณ',    lastName: 'อินจันทร์',     room: '5/8' },
+    { id: '42276', firstName: 'พัทธ์ธีรา',  lastName: 'ประพัศรางค์',   room: '5/8' },
+    { id: '40281', firstName: 'วุฒินันท์',  lastName: 'นันทะไสย',     room: '5/8' },
+    { id: '42292', firstName: 'วนัชพร',     lastName: 'กาศสนุก',      room: '5/8' },
+    { id: '42932', firstName: 'ภิรพัชร',    lastName: 'หิรัตน์พันธุ์',   room: '5/8' }
 ];
 
 // ========== Autocomplete: ค้นหาสมาชิกจากชื่อ/นามสกุล ==========
@@ -171,7 +172,7 @@ function renderSuggestions(members) {
                     transition: background 0.15s; font-size: 0.9rem;"
              onmouseover="this.style.background='var(--accent-primary-alpha, rgba(236,72,153,0.12))'"
              onmouseout="this.style.background='transparent'">
-            <span style="color: var(--text-primary); font-weight: 600;">${m.firstName} ${m.lastName}</span>
+            <span style="color: var(--text-primary); font-weight: 600;">${m.firstName} ${m.lastName} (${m.room || '5/8'})</span>
         </div>
     `).join('');
 }
@@ -295,6 +296,34 @@ function sanitizeState() {
     if (!state.issues) state.issues = [];
     if (!state.members || state.members.length === 0) {
         state.members = [...MEMBERS];
+    } else {
+        // อัปเกรดข้อมูลที่มีอยู่แล้วให้มีฟิลด์ห้อง และแก้ไขการสะกดชื่อตามรูปภาพน้องอาม
+        const ids_5_1 = [
+            '39967', '39998', '40019', '40050', '40059', '40206', '40309', '40338', '40350',
+            '39993', '40049', '40076', '40087', '40092', '40122', '40132', '40179', '40200',
+            '40202', '40245', '40266', '40294', '40352', '40363', '40376', '40380', '42242',
+            '42260', '42283'
+        ];
+        
+        const nameMap = {
+            '40050': { firstName: 'จยุตพงศ์', lastName: 'ดีคำ' },
+            '40049': { firstName: 'ชญาดา', lastName: 'สมบูรณ์' },
+            '40087': { firstName: 'ณัฐชยาน์', lastName: 'แก้วกล้า' },
+            '40200': { firstName: 'ปัทมพร', lastName: 'กาดเกษม' }
+        };
+        
+        // เพิ่ม 40206 (ปาลปวีณ์ สินมณี) เข้าไปในระบบหากยังไม่มี
+        if (!state.members.some(m => m.id === '40206')) {
+            state.members.push({ id: '40206', firstName: 'ปาลปวีณ์', lastName: 'สินมณี', room: '5/1' });
+        }
+        
+        state.members.forEach(m => {
+            m.room = ids_5_1.includes(m.id) ? '5/1' : '5/8';
+            if (nameMap[m.id]) {
+                m.firstName = nameMap[m.id].firstName;
+                m.lastName = nameMap[m.id].lastName;
+            }
+        });
     }
 }
 
@@ -2026,8 +2055,23 @@ function renderAdminMembersList() {
     if (!list) return;
     list.innerHTML = '';
     
+    // ค้นหารายชื่อจากช่อง input ค้นหาสมาชิก
+    const searchInput = document.getElementById('admin-member-search');
+    const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    
+    let filteredMembers = state.members;
+    if (q) {
+        filteredMembers = state.members.filter(m => 
+            m.id.toLowerCase().includes(q) ||
+            m.firstName.toLowerCase().includes(q) ||
+            m.lastName.toLowerCase().includes(q) ||
+            (m.firstName + ' ' + m.lastName).toLowerCase().includes(q) ||
+            (m.room || '5/8').toLowerCase().includes(q)
+        );
+    }
+    
     // Sort members by ID
-    const sortedMembers = [...state.members].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedMembers = [...filteredMembers].sort((a, b) => a.id.localeCompare(b.id));
     
     sortedMembers.forEach(m => {
         const row = document.createElement('tr');
@@ -2035,6 +2079,7 @@ function renderAdminMembersList() {
         row.innerHTML = `
             <td style="padding: 0.5rem; font-family: monospace; font-weight: bold; color: var(--text-secondary);">${m.id}</td>
             <td style="padding: 0.5rem; color: var(--text-primary);">${m.firstName} ${m.lastName}</td>
+            <td style="padding: 0.5rem; color: var(--text-secondary);">${m.room || '5/8'}</td>
             <td style="padding: 0.5rem; text-align: right; display: flex; justify-content: flex-end; gap: 0.35rem;">
                 <button class="btn" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-primary); color: white; border: none; border-radius: 0.25rem; width: auto;" onclick="startEditMember('${m.id}')">
                     <i class="fa-solid fa-edit"></i> แก้ไข
@@ -2057,7 +2102,8 @@ function startEditMember(id) {
     document.getElementById('manage-member-id').setAttribute('readonly', 'true');
     document.getElementById('manage-member-id').style.backgroundColor = 'var(--bg-tertiary)';
     document.getElementById('manage-member-firstname').value = member.firstName;
-    document.getElementById('manage-member-lastName') ? document.getElementById('manage-member-lastName').value = member.lastName : document.getElementById('manage-member-lastname').value = member.lastName;
+    document.getElementById('manage-member-lastname').value = member.lastName;
+    document.getElementById('manage-member-room').value = member.room || '5/8';
     
     const saveBtn = document.getElementById('btn-save-member');
     saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกการแก้ไข';
@@ -2088,6 +2134,7 @@ function handleSaveMember(event) {
     const id = document.getElementById('manage-member-id').value.trim();
     const firstName = document.getElementById('manage-member-firstname').value.trim();
     const lastName = document.getElementById('manage-member-lastname').value.trim();
+    const room = document.getElementById('manage-member-room').value;
     
     if (!id || !firstName || !lastName) {
         alert('กรุณากรอกข้อมูลให้ครบถ้วน');
@@ -2097,15 +2144,16 @@ function handleSaveMember(event) {
     if (mode === 'add') {
         const exists = state.members.some(m => m.id === id);
         if (exists) {
-            alert('❌ รหัสประจำตัว (รหัสผ่านเข้าเครื่อง) นี้มีอยู่ในระบบแล้ว');
+            alert('❌ รหัสประจำตัวนี้มีอยู่ในระบบแล้ว');
             return;
         }
-        state.members.push({ id, firstName, lastName });
+        state.members.push({ id, firstName, lastName, room });
     } else {
         const member = state.members.find(m => m.id === id);
         if (member) {
             member.firstName = firstName;
             member.lastName = lastName;
+            member.room = room;
         }
     }
     
