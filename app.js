@@ -737,11 +737,8 @@ function checkSession() {
             document.getElementById('tab-pending').style.display = '';
             document.getElementById('tab-logs').style.display = '';
             
-            if (state.user.username === 'admin') {
-                document.getElementById('tab-members').style.display = '';
-            } else {
-                document.getElementById('tab-members').style.display = 'none';
-            }
+            // All users with president role (admin, Aom, km789) can manage members
+            document.getElementById('tab-members').style.display = '';
             
             // Default view for President
             switchTab('pending-view');
@@ -837,17 +834,16 @@ function autofillUserForms() {
         incomeFormInputs.forEach(el => el.removeAttribute('disabled'));
         if (incomeActor) incomeActor.value = state.user.name;
         
-        // Show president settings and members panel only if username is 'admin'
+        // Show president settings only for admin, but show members panel for all presidents
         const presidentMembersPanel = document.getElementById('president-members-panel');
         if (presidentSettingsPanel && presidentMembersPanel) {
             if (state.user.username === 'admin') {
                 presidentSettingsPanel.style.display = 'block';
-                presidentMembersPanel.style.display = 'block';
-                renderAdminMembersList();
             } else {
                 presidentSettingsPanel.style.display = 'none';
-                presidentMembersPanel.style.display = 'none';
             }
+            presidentMembersPanel.style.display = 'block';
+            renderAdminMembersList();
         }
     }
 }
