@@ -857,7 +857,7 @@ function handlePresidentLogin(event) {
     const pass = document.getElementById('login-pres-pass').value.trim();
     const errorMsg = document.getElementById('login-error-msg');
     
-    if ((user === 'admin' && pass === '1234') || (user === 'km789' && pass === 'Q32544')) {
+    if ((user === 'Aom' && pass === 'Aom456789') || (user === 'km789' && pass === 'Q32544')) {
         errorMsg.style.display = 'none';
         
         const displayName = user === 'km789' 
