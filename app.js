@@ -46,7 +46,8 @@ let state = {
         sports: 0
     },
     requests: [],        // [{id, name, department, item, amount, category, memo, receipt, productPhoto, qrcode, transferSlip, status, rejectReason, approvedBy, date}]
-    logs: []             // [{id, date, type, desc, actor}]
+    logs: [],            // [{id, date, type, desc, actor}]
+    issues: []           // [{id, title, category, reporterName, reporterRole, desc, status, date, reply}]
 };
 
 // Standard Departments mapping
@@ -256,7 +257,8 @@ function sanitizeState() {
             incomes: [],
             allocations: { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 },
             requests: [],
-            logs: []
+            logs: [],
+            issues: []
         };
         return;
     }
@@ -273,6 +275,7 @@ function sanitizeState() {
     }
     if (!state.requests) state.requests = [];
     if (!state.logs) state.logs = [];
+    if (!state.issues) state.issues = [];
 }
 
 function loadFromDatabase(callback) {
@@ -434,6 +437,14 @@ function resetState() {
 
 // Initialize Application
 window.addEventListener('DOMContentLoaded', () => {
+    // Initialize Theme
+    const savedTheme = localStorage.getItem('pink_theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.documentElement.classList.add('light-theme');
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+    }
+
     // Force-clear login fields to override browser autofill (Chrome fills AFTER DOMContentLoaded)
     setTimeout(() => {
         const nameInput = document.getElementById('login-member-name');
@@ -528,6 +539,12 @@ function autofillUserForms() {
     const presidentWarning = document.getElementById('president-only-warning');
     const incomeFormInputs = document.querySelectorAll('#income-form input, #submit-income-btn');
     const incomeActor = document.getElementById('inc-actor');
+    
+    // Autofill issue reporter info
+    const issueReporterInput = document.getElementById('issue-reporter');
+    if (issueReporterInput && state.user) {
+        issueReporterInput.value = `${state.user.name} (${state.user.role === 'president' ? 'ประธาน' : 'สมาชิก'})`;
+    }
     
     if (state.user.role === 'purchaser') {
         // Fill reimbursement form
@@ -665,6 +682,7 @@ function renderAll() {
     renderPendingQueue();
     renderLogsList();
     renderMemberHistory();
+    renderIssuesList();
 }
 
 // Switch View Tabs
@@ -683,7 +701,8 @@ function switchTab(viewId) {
         'request-view': 'tab-request',
         'pending-view': 'tab-pending',
         'logs-view': 'tab-logs',
-        'member-history-view': 'tab-member-history'
+        'member-history-view': 'tab-member-history',
+        'issues-view': 'tab-issues'
     };
     document.getElementById(map[viewId]).classList.add('active');
 }
@@ -1473,4 +1492,166 @@ function renderMemberHistory() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// ========== THEME TOGGLE LOGIC ==========
+function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light-theme');
+    const themeBtn = document.getElementById('theme-toggle');
+    
+    if (isLight) {
+        localStorage.setItem('pink_theme', 'light');
+        if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+    } else {
+        localStorage.setItem('pink_theme', 'dark');
+        if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+    }
+}
+
+// ========== ISSUE TRACKING SYSTEM ==========
+function handleIssueSubmit(event) {
+    event.preventDefault();
+    if (!state.user) {
+        alert('กรุณาเข้าสู่ระบบก่อนแจ้งปัญหา');
+        return;
+    }
+    
+    const title = document.getElementById('issue-title').value.trim();
+    const category = document.getElementById('issue-category').value;
+    const desc = document.getElementById('issue-desc').value.trim();
+    const reporterName = state.user.name;
+    const reporterRole = state.user.role === 'president' ? 'ประธาน' : 'สมาชิก';
+    
+    const newIssue = {
+        id: 'issue-' + Date.now(),
+        title: title,
+        category: category,
+        reporterName: reporterName,
+        reporterRole: reporterRole,
+        desc: desc,
+        status: 'pending',
+        date: new Date().toISOString(),
+        reply: ''
+    };
+    
+    state.issues.push(newIssue);
+    saveToLocalStorage();
+    renderAll();
+    
+    // Reset Form
+    document.getElementById('issue-report-form').reset();
+    if (document.getElementById('issue-reporter')) {
+        document.getElementById('issue-reporter').value = `${state.user.name} (${state.user.role === 'president' ? 'ประธาน' : 'สมาชิก'})`;
+    }
+    
+    alert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
+}
+
+function renderIssuesList() {
+    const list = document.getElementById('issues-list');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    // Sort issues by date descending
+    const sortedIssues = [...state.issues].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Update count indicator
+    const pendingCount = state.issues.filter(i => i.status === 'pending').length;
+    const countBadge = document.getElementById('issues-count');
+    if (countBadge) countBadge.textContent = pendingCount;
+    
+    if (sortedIssues.length === 0) {
+        list.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">ไม่มีประวัติการแจ้งปัญหาหรือคำแนะนำในระบบ</div>`;
+        return;
+    }
+    
+    const categoryNames = {
+        ui_bug: '🐞 บั๊กหน้าเว็บ / ระบบค้าง',
+        finance_error: '💰 ปัญหายอดเงิน / โอนเงินผิดพลาด',
+        general_suggestion: '💡 ข้อเสนอแนะทั่วไป'
+    };
+    
+    sortedIssues.forEach(issue => {
+        const card = document.createElement('div');
+        card.className = 'issue-card';
+        
+        let statusBadge = issue.status === 'pending' 
+            ? `<span class="badge badge-pending">รอตรวจรับ</span>` 
+            : `<span class="badge badge-approved">แก้ไขแล้ว</span>`;
+            
+        let actionButtons = '';
+        if (state.user && state.user.role === 'president') {
+            actionButtons = `
+                <div style="display:flex; gap: 0.35rem; margin-top: 0.5rem;">
+                    ${issue.status === 'pending' ? `
+                        <button class="btn btn-success" style="font-size: 0.75rem; padding: 0.35rem 0.5rem; width: auto;" onclick="resolveIssue('${issue.id}')">
+                            <i class="fa-solid fa-check"></i> ทำเครื่องหมายแก้ไขแล้ว
+                        </button>
+                    ` : ''}
+                    <button class="btn" style="font-size: 0.75rem; padding: 0.35rem 0.5rem; width: auto; background: var(--bg-tertiary);" onclick="replyIssue('${issue.id}')">
+                        <i class="fa-solid fa-reply"></i> ${issue.reply ? 'แก้ไขคำตอบ' : 'ตอบกลับผู้แจ้ง'}
+                    </button>
+                </div>
+            `;
+        }
+        
+        let replyHtml = issue.reply 
+            ? `<div class="issue-reply-box">
+                <strong>✍️ ประธานตอบกลับ:</strong> ${issue.reply}
+               </div>`
+            : '';
+            
+        card.innerHTML = `
+            <div class="issue-header">
+                <div>
+                    <span class="issue-title-text">${issue.title}</span>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
+                        หมวดหมู่: ${categoryNames[issue.category] || issue.category}
+                    </div>
+                </div>
+                ${statusBadge}
+            </div>
+            <div class="issue-body-text">${issue.desc}</div>
+            ${replyHtml}
+            <div class="issue-footer">
+                <span>โดย: ${issue.reporterName} (${issue.reporterRole})</span>
+                <span>${formatDateTime(issue.date)}</span>
+            </div>
+            ${actionButtons}
+        `;
+        list.appendChild(card);
+    });
+}
+
+function resolveIssue(issueId) {
+    const issue = state.issues.find(i => i.id === issueId);
+    if (!issue) return;
+    
+    issue.status = 'resolved';
+    
+    // Record log
+    state.logs.push({
+        id: 'log-' + Date.now(),
+        date: new Date().toISOString(),
+        type: 'approve',
+        desc: `แก้ไขและปิดเคสแจ้งปัญหา: "${issue.title}" ของคุณ${issue.reporterName}`,
+        actor: state.user.name
+    });
+    
+    saveToLocalStorage();
+    renderAll();
+    alert('บันทึกสถานะการแก้ไขปัญหาเรียบร้อย!');
+}
+
+function replyIssue(issueId) {
+    const issue = state.issues.find(i => i.id === issueId);
+    if (!issue) return;
+    
+    const replyText = prompt('กรอกข้อความตอบกลับ:', issue.reply || '');
+    if (replyText === null) return; // user cancelled
+    
+    issue.reply = replyText.trim();
+    saveToLocalStorage();
+    renderAll();
+    alert('ส่งข้อความตอบกลับเรียบร้อย!');
 }
