@@ -857,10 +857,15 @@ function handlePresidentLogin(event) {
     const pass = document.getElementById('login-pres-pass').value.trim();
     const errorMsg = document.getElementById('login-error-msg');
     
-    if (user === 'admin' && pass === '1234') {
+    if ((user === 'admin' && pass === '1234') || (user === 'km789' && pass === 'Q32544')) {
         errorMsg.style.display = 'none';
+        
+        const displayName = user === 'km789' 
+            ? 'รองประธานสวัสดิการ (km789)' 
+            : 'ประธานสวัสดิการ (อภิสิทธิ์)';
+            
         state.user = {
-            name: 'ประธานสวัสดิการ (อภิสิทธิ์)',
+            name: displayName,
             department: null,
             role: 'president'
         };
