@@ -302,6 +302,10 @@ main {
     border-bottom-color: var(--accent-primary);
 }
 
+.tab-text-mobile {
+    display: none;
+}
+
 .tab-content {
     display: none;
     animation: fadeIn 0.4s ease-in-out;
@@ -1178,10 +1182,22 @@ body, main, header, .panel-card, .metric-card, .tab-btn, .form-control, table, t
         padding: 0.75rem !important;
     }
     
+    .tab-navigation {
+        padding-right: 1.5rem !important;
+    }
+    
     /* Navigation tabs padding and spacing */
     .tab-btn {
         padding: 0.5rem 0.75rem !important;
         font-size: 0.85rem !important;
+    }
+
+    .tab-text-desktop {
+        display: none !important;
+    }
+
+    .tab-text-mobile {
+        display: inline !important;
     }
     
     /* Tables font size and padding reduction */

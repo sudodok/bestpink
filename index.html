@@ -166,22 +166,36 @@
         <!-- Navigation Tabs -->
         <div class="tab-navigation">
             <button id="tab-dashboard" class="tab-btn active" onclick="switchTab('dashboard-view')">
-                <i class="fa-solid fa-chart-pie"></i> แดชบอร์ดแบ่งฝ่าย
+                <i class="fa-solid fa-chart-pie"></i>
+                <span class="tab-text-desktop">แดชบอร์ดแบ่งฝ่าย</span>
+                <span class="tab-text-mobile">แดชบอร์ด</span>
             </button>
             <button id="tab-request" class="tab-btn" onclick="switchTab('request-view')">
-                <i class="fa-solid fa-file-invoice-dollar"></i> ยื่นใบเบิกเงิน
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+                <span class="tab-text-desktop">ยื่นใบเบิกเงิน</span>
+                <span class="tab-text-mobile">ยื่นใบเบิก</span>
             </button>
             <button id="tab-pending" class="tab-btn" onclick="switchTab('pending-view')">
-                <i class="fa-solid fa-hourglass-half"></i> รายการพิจารณาเบิก (<span id="pending-count">0</span>)
+                <i class="fa-solid fa-hourglass-half"></i>
+                <span class="tab-text-desktop">รายการพิจารณาเบิก</span>
+                <span class="tab-text-mobile">รออนุมัติ</span>
+                (<span id="pending-count">0</span>)
             </button>
             <button id="tab-logs" class="tab-btn" onclick="switchTab('logs-view')">
-                <i class="fa-solid fa-clock-rotate-left"></i> ประวัติ & สลิปโอนเงิน
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="tab-text-desktop">ประวัติ & สลิปโอนเงิน</span>
+                <span class="tab-text-mobile">ประวัติ & สลิป</span>
             </button>
             <button id="tab-member-history" class="tab-btn" onclick="switchTab('member-history-view')" style="display: none;">
-                <i class="fa-solid fa-receipt"></i> ประวัติการเบิกของฉัน
+                <i class="fa-solid fa-receipt"></i>
+                <span class="tab-text-desktop">ประวัติการเบิกของฉัน</span>
+                <span class="tab-text-mobile">ประวัติของฉัน</span>
             </button>
             <button id="tab-issues" class="tab-btn" onclick="switchTab('issues-view')">
-                <i class="fa-solid fa-triangle-exclamation"></i> แจ้งปัญหา (<span id="issues-count">0</span>)
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span class="tab-text-desktop">แจ้งปัญหา</span>
+                <span class="tab-text-mobile">แจ้งปัญหา</span>
+                (<span id="issues-count">0</span>)
             </button>
         </div>
 
