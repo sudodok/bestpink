@@ -1823,6 +1823,45 @@ function handleIssueSubmit(event) {
     alert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
 }
 
+// Login Page Issue Modal Controls
+function openLoginIssueModal() {
+    document.getElementById('login-issue-form').reset();
+    document.getElementById('login-issue-modal').classList.add('active');
+}
+
+function closeLoginIssueModal() {
+    document.getElementById('login-issue-modal').classList.remove('active');
+}
+
+function handleLoginIssueSubmit(event) {
+    event.preventDefault();
+    
+    const title = document.getElementById('login-issue-title').value.trim();
+    const category = document.getElementById('login-issue-category').value;
+    const desc = document.getElementById('login-issue-desc').value.trim();
+    const reporterName = document.getElementById('login-issue-reporter').value.trim();
+    
+    const newIssue = {
+        id: 'issue-' + Date.now(),
+        title: title,
+        category: category,
+        reporterName: reporterName,
+        reporterRole: 'ผู้แจ้งภายนอก',
+        desc: desc,
+        status: 'pending',
+        date: new Date().toISOString(),
+        reply: ''
+    };
+    
+    state.issues.push(newIssue);
+    saveToLocalStorage();
+    syncItemToFirebase('issues', newIssue.id, newIssue);
+    renderAll();
+    
+    closeLoginIssueModal();
+    alert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
+}
+
 function renderIssuesList() {
     const list = document.getElementById('issues-list');
     if (!list) return;

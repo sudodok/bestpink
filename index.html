@@ -135,6 +135,12 @@
                     <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบอนุมัติ
                 </button>
             </form>
+            
+            <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" onclick="openLoginIssueModal()" style="font-size: 0.85rem; color: var(--text-secondary); background: none; border: none; cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-sans);">
+                    <i class="fa-solid fa-circle-question"></i> พบปัญหาการใช้งาน? แจ้งปัญหาที่นี่
+                </button>
+            </div>
         </div>
     </section>
 
@@ -489,6 +495,45 @@
                 <button class="btn btn-danger" onclick="confirmReject()">ยืนยันปฏิเสธ</button>
                 <button class="btn" style="background: var(--bg-tertiary);" onclick="closeRejectModal()">ยกเลิก</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal for reporting issues from login screen -->
+    <div id="login-issue-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px; width: 90%;">
+            <button class="close-modal" onclick="closeLoginIssueModal()">&times;</button>
+            <h3 style="margin-bottom: 1.25rem;"><i class="fa-solid fa-edit"></i> แจ้งปัญหาการใช้งานหรือส่งข้อเสนอแนะ</h3>
+            <form id="login-issue-form" onsubmit="handleLoginIssueSubmit(event)">
+                <div class="form-group">
+                    <label for="login-issue-title">หัวข้อปัญหา / ข้อเสนอแนะ</label>
+                    <input type="text" id="login-issue-title" class="form-control" placeholder="เช่น ไม่พบชื่อในระบบ, ล็อกอินไม่ได้ หรือคำสะกดผิด" required>
+                </div>
+                <div class="form-row-2col">
+                    <div class="form-group">
+                        <label for="login-issue-category">หมวดหมู่</label>
+                        <select id="login-issue-category" class="form-control" required>
+                            <option value="ui_bug">🐞 บั๊กหน้าเว็บ / ระบบค้าง</option>
+                            <option value="finance_error">💰 ปัญหายอดเงิน / ล็อกอินไม่ได้</option>
+                            <option value="general_suggestion">💡 ข้อเสนอแนะทั่วไป</option>
+                            <option value="others">❓ อื่น ๆ</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-issue-reporter">ชื่อ-นามสกุล ผู้แจ้งเรื่อง</label>
+                        <input type="text" id="login-issue-reporter" class="form-control" placeholder="ระบุชื่อจริงของคุณ" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-issue-desc">รายละเอียดปัญหา</label>
+                    <textarea id="login-issue-desc" class="form-control" rows="4" placeholder="อธิบายรายละเอียดปัญหาเพิ่มเพื่อให้สามารถช่วยเหลือหรือแก้ไขได้ตรงจุด..." required></textarea>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-paper-plane"></i> ส่งรายงานปัญหา
+                    </button>
+                    <button type="button" class="btn" style="background: var(--bg-tertiary);" onclick="closeLoginIssueModal()">ยกเลิก</button>
+                </div>
+            </form>
         </div>
     </div>
 
