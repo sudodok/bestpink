@@ -518,6 +518,11 @@ function clearFirebaseDatabase() {
 
 // Handle system database reset click
 function handleSystemReset() {
+    if (!state.user || state.user.role !== 'president' || state.user.username !== 'admin') {
+        alert("เฉพาะแอดมินหลัก (username: admin) เท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
+        return;
+    }
+    
     if (!confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตข้อมูลทั้งหมดในระบบ? การกระทำนี้จะลบใบเบิก รายรับ บันทึกเหตุการณ์ และการแจ้งปัญหาทั้งหมด ทั้งในเครื่องนี้และในคลัง Firebase (ถ้าเชื่อมต่ออยู่) และไม่สามารถกู้คืนได้!")) {
         return;
     }
@@ -784,8 +789,14 @@ function autofillUserForms() {
         incomeFormInputs.forEach(el => el.removeAttribute('disabled'));
         if (incomeActor) incomeActor.value = state.user.name;
         
-        // Show president settings panel
-        if (presidentSettingsPanel) presidentSettingsPanel.style.display = 'block';
+        // Show president settings panel only if username is 'admin'
+        if (presidentSettingsPanel) {
+            if (state.user.username === 'admin') {
+                presidentSettingsPanel.style.display = 'block';
+            } else {
+                presidentSettingsPanel.style.display = 'none';
+            }
+        }
     }
 }
 
@@ -869,6 +880,7 @@ function handlePresidentLogin(event) {
             : 'ประธานสวัสดิการ';
             
         state.user = {
+            username: user,
             name: displayName,
             department: null,
             role: 'president'
