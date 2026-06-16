@@ -420,6 +420,7 @@ main {
     border-radius: 1.25rem;
     padding: 2rem;
     box-shadow: var(--card-shadow);
+    min-width: 0;
 }
 
 @media (max-width: 768px) {
