@@ -200,6 +200,11 @@
                 <span class="tab-text-desktop">ประวัติ & สลิปโอนเงิน</span>
                 <span class="tab-text-mobile">ประวัติ & สลิป</span>
             </button>
+            <button id="tab-members" class="tab-btn" onclick="switchTab('members-view')" style="display: none;">
+                <i class="fa-solid fa-users-cog"></i>
+                <span class="tab-text-desktop">จัดการรายชื่อสมาชิก</span>
+                <span class="tab-text-mobile">จัดการสมาชิก</span>
+            </button>
             <button id="tab-member-history" class="tab-btn" onclick="switchTab('member-history-view')" style="display: none;">
                 <i class="fa-solid fa-receipt"></i>
                 <span class="tab-text-desktop">ประวัติการเบิกของฉัน</span>
@@ -403,63 +408,64 @@
                         </button>
                     </div>
 
-                    <!-- Manage Members Settings Panel (President Only) -->
-                    <div class="panel-card" id="president-members-panel" style="margin-top: 1.5rem; display: none;">
-                        <h2 class="panel-title"><i class="fa-solid fa-users-cog"></i> จัดการรายชื่อสมาชิกคณะสีชมพู</h2>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                            สำหรับ เพิ่ม แก้ไขตัวสะกด หรือลบรายชื่อสมาชิกคณะสีชมพู
-                        </p>
-                        
-                        <!-- Form to Add/Edit Member -->
-                        <form id="member-manage-form" onsubmit="handleSaveMember(event)" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color);">
-                            <input type="hidden" id="manage-member-mode" value="add"> <!-- 'add' or 'edit' -->
-                            <div class="form-row-2col">
-                                <div class="form-group">
-                                    <label for="manage-member-id">รหัสประจำตัว (รหัสผ่านเข้าเครื่อง)</label>
-                                    <input type="text" id="manage-member-id" class="form-control" placeholder="เช่น 40119" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="manage-member-firstname">ชื่อจริง</label>
-                                    <input type="text" id="manage-member-firstname" class="form-control" placeholder="เช่น ธนโชติ" required>
-                                </div>
-                            </div>
-                            <div class="form-row-2col">
-                                <div class="form-group">
-                                    <label for="manage-member-lastname">นามสกุล</label>
-                                    <input type="text" id="manage-member-lastname" class="form-control" placeholder="เช่น แจ้งเลิศ" required>
-                                </div>
-                                <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
-                                    <button type="submit" id="btn-save-member" class="btn btn-primary" style="width: 100%;">
-                                        <i class="fa-solid fa-plus-circle"></i> เพิ่มสมาชิกใหม่
-                                    </button>
-                                    <button type="button" id="btn-cancel-edit-member" class="btn" style="background: var(--bg-tertiary); display: none;" onclick="cancelEditMember()">
-                                        ยกเลิก
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-
-                        <!-- Members list table inside admin panel -->
-                        <div style="max-height: 300px; overflow-y: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                                        <th style="padding: 0.5rem;">รหัส</th>
-                                        <th style="padding: 0.5rem;">ชื่อ-นามสกุล</th>
-                                        <th style="padding: 0.5rem; text-align: right;">การจัดการ</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="admin-members-list">
-                                    <!-- Populated dynamically -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-
                     <div id="president-only-warning" style="display: none; text-align: center; color: var(--accent-warning); font-size: 0.9rem;">
                         <i class="fa-solid fa-triangle-exclamation"></i> ฟังก์ชันการเงินจะเปิดใช้งานเมื่อเข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบหรือคณะกรรมการแล้วเท่านั้น
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Manage Members (President/Admin Only) -->
+        <div id="members-view" class="tab-content">
+            <div class="panel-card" id="president-members-panel" style="display: none;">
+                <h2 class="panel-title"><i class="fa-solid fa-users-cog"></i> จัดการรายชื่อสมาชิกคณะสีชมพู</h2>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                    สำหรับ เพิ่ม แก้ไขตัวสะกด หรือลบรายชื่อสมาชิกคณะสีชมพู
+                </p>
+                
+                <!-- Form to Add/Edit Member -->
+                <form id="member-manage-form" onsubmit="handleSaveMember(event)" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color);">
+                    <input type="hidden" id="manage-member-mode" value="add"> <!-- 'add' or 'edit' -->
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="manage-member-id">รหัสประจำตัว (รหัสผ่านเข้าเครื่อง)</label>
+                            <input type="text" id="manage-member-id" class="form-control" placeholder="เช่น 40119" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="manage-member-firstname">ชื่อจริง</label>
+                            <input type="text" id="manage-member-firstname" class="form-control" placeholder="เช่น ธนโชติ" required>
+                        </div>
+                    </div>
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="manage-member-lastname">นามสกุล</label>
+                            <input type="text" id="manage-member-lastname" class="form-control" placeholder="เช่น แจ้งเลิศ" required>
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                            <button type="submit" id="btn-save-member" class="btn btn-primary" style="width: 100%;">
+                                <i class="fa-solid fa-plus-circle"></i> เพิ่มสมาชิกใหม่
+                            </button>
+                            <button type="button" id="btn-cancel-edit-member" class="btn" style="background: var(--bg-tertiary); display: none;" onclick="cancelEditMember()">
+                                ยกเลิก
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Members list table inside admin panel -->
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                <th style="padding: 0.5rem;">รหัส</th>
+                                <th style="padding: 0.5rem;">ชื่อ-นามสกุล</th>
+                                <th style="padding: 0.5rem; text-align: right;">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-members-list">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

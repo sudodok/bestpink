@@ -737,6 +737,12 @@ function checkSession() {
             document.getElementById('tab-pending').style.display = '';
             document.getElementById('tab-logs').style.display = '';
             
+            if (state.user.username === 'admin') {
+                document.getElementById('tab-members').style.display = '';
+            } else {
+                document.getElementById('tab-members').style.display = 'none';
+            }
+            
             // Default view for President
             switchTab('pending-view');
         } else {
@@ -751,6 +757,7 @@ function checkSession() {
             document.getElementById('tab-dashboard').style.display = 'none';
             document.getElementById('tab-pending').style.display = 'none';
             document.getElementById('tab-logs').style.display = 'none';
+            document.getElementById('tab-members').style.display = 'none';
             
             // Default view for Member
             switchTab('request-view');
@@ -1001,9 +1008,14 @@ function switchTab(viewId) {
         'pending-view': 'tab-pending',
         'logs-view': 'tab-logs',
         'member-history-view': 'tab-member-history',
-        'issues-view': 'tab-issues'
+        'issues-view': 'tab-issues',
+        'members-view': 'tab-members'
     };
     document.getElementById(map[viewId]).classList.add('active');
+    
+    if (viewId === 'members-view') {
+        renderAdminMembersList();
+    }
 }
 
 // Calculation and Metrics Rendering
