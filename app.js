@@ -861,8 +861,8 @@ function handlePresidentLogin(event) {
         errorMsg.style.display = 'none';
         
         const displayName = user === 'km789' 
-            ? 'รองประธานสวัสดิการ (km789)' 
-            : 'ประธานสวัสดิการ (อภิสิทธิ์)';
+            ? 'รองประธานสวัสดิการ' 
+            : 'ประธานสวัสดิการ';
             
         state.user = {
             name: displayName,
