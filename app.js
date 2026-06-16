@@ -2081,8 +2081,17 @@ function renderAdminMembersList() {
         );
     }
     
-    // Sort members by ID
-    const sortedMembers = [...filteredMembers].sort((a, b) => a.id.localeCompare(b.id));
+    // Sort members by Room first, then by Name (Thai locale)
+    const sortedMembers = [...filteredMembers].sort((a, b) => {
+        const roomA = a.room || '5/8';
+        const roomB = b.room || '5/8';
+        const roomCompare = roomA.localeCompare(roomB);
+        if (roomCompare !== 0) return roomCompare;
+        
+        const nameA = a.firstName || '';
+        const nameB = b.firstName || '';
+        return nameA.localeCompare(nameB, 'th');
+    });
     
     sortedMembers.forEach(m => {
         const row = document.createElement('tr');
@@ -2152,6 +2161,8 @@ function handleSaveMember(event) {
         return;
     }
     
+    let logMsg = '';
+    
     if (mode === 'add') {
         const exists = state.members.some(m => m.id === id);
         if (exists) {
@@ -2159,13 +2170,29 @@ function handleSaveMember(event) {
             return;
         }
         state.members.push({ id, firstName, lastName, room });
+        logMsg = `เพิ่มสมาชิกใหม่: ${firstName} ${lastName} (รหัส: ${id}, ห้อง: ${room})`;
     } else {
         const member = state.members.find(m => m.id === id);
         if (member) {
+            const oldDetails = `${member.firstName} ${member.lastName} (ห้อง: ${member.room || '5/8'})`;
             member.firstName = firstName;
             member.lastName = lastName;
             member.room = room;
+            logMsg = `แก้ไขข้อมูลสมาชิก: จาก "${oldDetails}" เป็น "${firstName} ${lastName} (ห้อง: ${room})"`;
         }
+    }
+    
+    // บันทึก Log
+    if (logMsg) {
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: mode === 'add' ? 'member_add' : 'member_edit',
+            desc: logMsg,
+            actor: state.user ? state.user.name : 'ระบบ'
+        };
+        state.logs.push(newLog);
+        syncItemToFirebase('logs', newLog.id, newLog);
     }
     
     saveToLocalStorage();
@@ -2184,7 +2211,19 @@ function deleteMember(id) {
         return;
     }
     
+    const details = `${member.firstName} ${member.lastName} (รหัส: ${member.id}, ห้อง: ${member.room || '5/8'})`;
     state.members = state.members.filter(m => m.id !== id);
+    
+    // บันทึก Log การลบ
+    const newLog = {
+        id: 'log-' + Date.now(),
+        date: new Date().toISOString(),
+        type: 'member_delete',
+        desc: `ลบสมาชิกออกจากระบบ: ${details}`,
+        actor: state.user ? state.user.name : 'ระบบ'
+    };
+    state.logs.push(newLog);
+    syncItemToFirebase('logs', newLog.id, newLog);
     
     saveToLocalStorage();
     syncItemToFirebase('settings', 'members', { list: state.members });
