@@ -241,13 +241,27 @@ function saveToLocalStorage() {
     } catch (e) {
         console.warn("IndexedDB not supported or blocked on this protocol:", e);
     }
-    
-    // 3. Save to Firebase Firestore if enabled
+}
+
+// Helper: Sync single item to Firestore
+function syncItemToFirebase(collectionName, itemId, data) {
     if (useFirebase && db) {
-        db.collection('settings').doc('pink_team_state').set(state)
-            .then(() => console.log("State synced to Firebase Firestore"))
-            .catch(err => console.error("Error syncing to Firebase:", err));
+        db.collection(collectionName).doc(itemId).set(data)
+            .then(() => console.log(`🔥 Synced document: ${collectionName}/${itemId}`))
+            .catch(err => console.error(`Firebase sync error for ${collectionName}/${itemId}:`, err));
     }
+}
+
+// Helper: Seed Firebase from local cache
+function seedFirebaseFromLocal() {
+    if (!useFirebase || !db) return;
+    console.log("Seeding Firebase Firestore from local data...");
+    
+    state.requests.forEach(req => syncItemToFirebase('requests', req.id, req));
+    state.incomes.forEach(inc => syncItemToFirebase('incomes', inc.id, inc));
+    state.logs.forEach(log => syncItemToFirebase('logs', log.id, log));
+    state.issues.forEach(issue => syncItemToFirebase('issues', issue.id, issue));
+    syncItemToFirebase('settings', 'allocations', state.allocations);
 }
 
 function sanitizeState() {
@@ -280,81 +294,271 @@ function sanitizeState() {
 
 function loadFromDatabase(callback) {
     if (useFirebase && db) {
-        console.log("Attempting to connect to Firebase Firestore...");
+        console.log("Attempting to connect to Firebase Firestore (collection-based schema)...");
         let hasLoaded = false;
         
-        // ตั้งเวลา Timeout 3.5 วินาที หากเชื่อมต่อ Firebase ไม่สำเร็จจะดึงข้อมูลเครื่องโลคอลแทนทันที
+        // Timeout 3.5 seconds
         const fbTimeout = setTimeout(() => {
             if (!hasLoaded) {
                 console.warn("⚠️ Firebase connection timed out. Falling back to local database...");
-                // ปิดการใช้ Firebase ชั่วคราวเพื่อให้ระบบออฟไลน์ทำงานแทน
                 useFirebase = false; 
                 loadLocalData(callback);
             }
         }, 3500);
 
-        // โหลดข้อมูลจาก Firebase Firestore
-        db.collection('settings').doc('pink_team_state').get()
-            .then(doc => {
-                if (hasLoaded) return;
-                hasLoaded = true;
-                clearTimeout(fbTimeout);
+        // Fetch all collections
+        Promise.all([
+            db.collection('requests').get(),
+            db.collection('incomes').get(),
+            db.collection('logs').get(),
+            db.collection('issues').get(),
+            db.collection('settings').doc('allocations').get()
+        ]).then(([requestsSnap, incomesSnap, logsSnap, issuesSnap, allocationsSnap]) => {
+            if (hasLoaded) return;
+            hasLoaded = true;
+            clearTimeout(fbTimeout);
 
-                if (doc.exists) {
-                    const currentUser = state.user;
-                    state = doc.data();
-                    state.user = currentUser;
-                    sanitizeState();
-                    
-                    console.log("State loaded successfully from Firebase Firestore");
+            const currentUser = state.user;
+            
+            // Check if Firebase is completely brand-new / empty
+            if (requestsSnap.empty && incomesSnap.empty && logsSnap.empty && issuesSnap.empty) {
+                console.log("Firebase contains no collection data. Seeding with local state...");
+                loadLocalData(() => {
+                    seedFirebaseFromLocal();
                     setupFirebaseRealtimeListener();
                     callback();
+                });
+            } else {
+                state.requests = [];
+                requestsSnap.forEach(doc => state.requests.push(doc.data()));
+                
+                state.incomes = [];
+                incomesSnap.forEach(doc => state.incomes.push(doc.data()));
+                
+                state.logs = [];
+                logsSnap.forEach(doc => state.logs.push(doc.data()));
+                
+                state.issues = [];
+                issuesSnap.forEach(doc => state.issues.push(doc.data()));
+                
+                if (allocationsSnap.exists) {
+                    state.allocations = allocationsSnap.data();
                 } else {
-                    console.log("Firebase state document not found, seeding with local data...");
-                    loadLocalData(() => {
-                        saveToLocalStorage(); 
-                        setupFirebaseRealtimeListener();
-                        callback();
-                    });
+                    state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
                 }
-            })
-            .catch(err => {
-                if (hasLoaded) return;
-                hasLoaded = true;
-                clearTimeout(fbTimeout);
-                console.error("Error loading from Firebase, falling back to local database:", err);
-                loadLocalData(callback);
-            });
+                
+                state.user = currentUser;
+                sanitizeState();
+                
+                console.log("State loaded successfully from Firebase Firestore Collections.");
+                saveToLocalStorage();
+                setupFirebaseRealtimeListener();
+                callback();
+            }
+        }).catch(err => {
+            if (hasLoaded) return;
+            hasLoaded = true;
+            clearTimeout(fbTimeout);
+            console.error("Error loading from Firebase Collections, falling back to local database:", err);
+            loadLocalData(callback);
+        });
     } else {
         loadLocalData(callback);
     }
 }
 
-let firebaseListenerUnsubscribe = null;
+let firebaseListeners = [];
 function setupFirebaseRealtimeListener() {
     if (!useFirebase || !db) return;
     
-    if (firebaseListenerUnsubscribe) {
-        firebaseListenerUnsubscribe();
+    // Clear existing listeners
+    if (firebaseListeners.length > 0) {
+        firebaseListeners.forEach(unsub => unsub());
+        firebaseListeners = [];
     }
     
-    firebaseListenerUnsubscribe = db.collection('settings').doc('pink_team_state')
-        .onSnapshot(doc => {
-            if (doc.exists) {
-                const data = doc.data();
-                const currentUser = state.user;
-                state = data;
-                state.user = currentUser; // Maintain current session locally
-                sanitizeState();
-                
-                console.log("State synced in real-time from Firebase Firestore");
-                if (state.user) {
-                    renderAll(); // Renders the active dashboard views
+    console.log("Setting up multi-collection Firestore realtime listeners...");
+    
+    // 1. Listen to requests
+    const unsubRequests = db.collection('requests').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const docData = change.doc.data();
+            const idx = state.requests.findIndex(r => r.id === docData.id);
+            if (change.type === 'added' || change.type === 'modified') {
+                if (idx > -1) {
+                    state.requests[idx] = docData;
+                } else {
+                    state.requests.push(docData);
+                }
+            } else if (change.type === 'removed') {
+                if (idx > -1) {
+                    state.requests.splice(idx, 1);
                 }
             }
-        }, err => {
-            console.error("Firebase realtime sync error:", err);
         });
+        saveToLocalStorage();
+        if (state.user) renderAll();
+    }, err => console.error("Realtime requests sync error:", err));
+    firebaseListeners.push(unsubRequests);
+
+    // 2. Listen to incomes
+    const unsubIncomes = db.collection('incomes').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const docData = change.doc.data();
+            const idx = state.incomes.findIndex(i => i.id === docData.id);
+            if (change.type === 'added' || change.type === 'modified') {
+                if (idx > -1) {
+                    state.incomes[idx] = docData;
+                } else {
+                    state.incomes.push(docData);
+                }
+            } else if (change.type === 'removed') {
+                if (idx > -1) {
+                    state.incomes.splice(idx, 1);
+                }
+            }
+        });
+        saveToLocalStorage();
+        if (state.user) renderAll();
+    }, err => console.error("Realtime incomes sync error:", err));
+    firebaseListeners.push(unsubIncomes);
+
+    // 3. Listen to logs
+    const unsubLogs = db.collection('logs').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const docData = change.doc.data();
+            const idx = state.logs.findIndex(l => l.id === docData.id);
+            if (change.type === 'added' || change.type === 'modified') {
+                if (idx > -1) {
+                    state.logs[idx] = docData;
+                } else {
+                    state.logs.push(docData);
+                }
+            } else if (change.type === 'removed') {
+                if (idx > -1) {
+                    state.logs.splice(idx, 1);
+                }
+            }
+        });
+        saveToLocalStorage();
+        if (state.user) renderAll();
+    }, err => console.error("Realtime logs sync error:", err));
+    firebaseListeners.push(unsubLogs);
+
+    // 4. Listen to issues
+    const unsubIssues = db.collection('issues').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const docData = change.doc.data();
+            const idx = state.issues.findIndex(i => i.id === docData.id);
+            if (change.type === 'added' || change.type === 'modified') {
+                if (idx > -1) {
+                    state.issues[idx] = docData;
+                } else {
+                    state.issues.push(docData);
+                }
+            } else if (change.type === 'removed') {
+                if (idx > -1) {
+                    state.issues.splice(idx, 1);
+                }
+            }
+        });
+        saveToLocalStorage();
+        if (state.user) renderAll();
+    }, err => console.error("Realtime issues sync error:", err));
+    firebaseListeners.push(unsubIssues);
+
+    // 5. Listen to allocations
+    const unsubAllocations = db.collection('settings').doc('allocations').onSnapshot(doc => {
+        if (doc.exists) {
+            state.allocations = doc.data();
+            saveToLocalStorage();
+            if (state.user) renderAll();
+        }
+    }, err => console.error("Realtime allocations sync error:", err));
+    firebaseListeners.push(unsubAllocations);
+}
+
+// Clear all data from Firebase Firestore
+function clearFirebaseDatabase() {
+    if (!useFirebase || !db) return Promise.resolve();
+    
+    console.log("Purging all Firestore collections...");
+    
+    const pRequests = db.collection('requests').get().then(snap => {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        return batch.commit();
+    });
+    
+    const pIncomes = db.collection('incomes').get().then(snap => {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        return batch.commit();
+    });
+
+    const pLogs = db.collection('logs').get().then(snap => {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        return batch.commit();
+    });
+
+    const pIssues = db.collection('issues').get().then(snap => {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        return batch.commit();
+    });
+
+    const pSettings = db.collection('settings').doc('allocations').delete();
+
+    // Also delete the old flat state doc to clean up the user's DB
+    const pOldDoc = db.collection('settings').doc('pink_team_state').delete();
+
+    return Promise.all([pRequests, pIncomes, pLogs, pIssues, pSettings, pOldDoc]);
+}
+
+// Handle system database reset click
+function handleSystemReset() {
+    if (!confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตข้อมูลทั้งหมดในระบบ? การกระทำนี้จะลบใบเบิก รายรับ บันทึกเหตุการณ์ และการแจ้งปัญหาทั้งหมด ทั้งในเครื่องนี้และในคลัง Firebase (ถ้าเชื่อมต่ออยู่) และไม่สามารถกู้คืนได้!")) {
+        return;
+    }
+    
+    const confirmText = prompt("พิมพ์คำว่า 'RESET' เพื่อยืนยันการล้างข้อมูลระบบ:");
+    if (confirmText !== 'RESET') {
+        alert("ยกเลิกการรีเซ็ตระบบเนื่องจากยืนยันข้อความไม่ถูกต้อง");
+        return;
+    }
+    
+    alert("กำลังรีเซ็ตและล้างฐานข้อมูลระบบ... กรุณารอสักครู่");
+    
+    clearFirebaseDatabase().then(() => {
+        state.incomes = [];
+        state.requests = [];
+        state.logs = [];
+        state.issues = [];
+        state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
+        
+        saveToLocalStorage();
+        
+        try {
+            const req = indexedDB.deleteDatabase('pink_team_finance_db');
+            req.onsuccess = () => {
+                localStorage.removeItem('pink_team_finance_state_v3');
+                alert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่");
+                window.location.reload();
+            };
+            req.onerror = () => {
+                localStorage.removeItem('pink_team_finance_state_v3');
+                alert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่");
+                window.location.reload();
+            };
+        } catch(e) {
+            localStorage.removeItem('pink_team_finance_state_v3');
+            window.location.reload();
+        }
+    }).catch(err => {
+        console.error("Purge failure:", err);
+        alert("รีเซ็ตระบบผิดพลาด: " + err.message);
+    });
 }
 
 function loadLocalData(callback) {
@@ -546,6 +750,8 @@ function autofillUserForms() {
         issueReporterInput.value = `${state.user.name} (${state.user.role === 'president' ? 'ประธาน' : 'สมาชิก'})`;
     }
     
+    const presidentSettingsPanel = document.getElementById('president-settings-panel');
+    
     if (state.user.role === 'purchaser') {
         // Fill reimbursement form
         nameInput.value = state.user.name;
@@ -560,6 +766,9 @@ function autofillUserForms() {
         presidentWarning.style.display = 'block';
         incomeFormInputs.forEach(el => el.setAttribute('disabled', 'true'));
         if (incomeActor) incomeActor.value = '';
+        
+        // Hide president settings panel
+        if (presidentSettingsPanel) presidentSettingsPanel.style.display = 'none';
     } else {
         // President mode
         nameInput.value = '—';
@@ -574,6 +783,9 @@ function autofillUserForms() {
         presidentWarning.style.display = 'none';
         incomeFormInputs.forEach(el => el.removeAttribute('disabled'));
         if (incomeActor) incomeActor.value = state.user.name;
+        
+        // Show president settings panel
+        if (presidentSettingsPanel) presidentSettingsPanel.style.display = 'block';
     }
 }
 
@@ -1238,16 +1450,19 @@ function handleRequestSubmit(event) {
     state.requests.push(newRequest);
     
     // Record log
-    state.logs.push({
+    const newLog = {
         id: 'log-' + Date.now(),
         date: new Date().toISOString(),
         type: 'upload',
         requestId: reqId,
         desc: `ส่งคำขอเบิกเงิน: ${item} ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฝ่าย${getDeptDisplayName(department)}`,
         actor: name
-    });
+    };
+    state.logs.push(newLog);
     
     saveToLocalStorage();
+    syncItemToFirebase('requests', newRequest.id, newRequest);
+    syncItemToFirebase('logs', newLog.id, newLog);
     renderAll();
     
     // Reset Form and Draft State
@@ -1291,15 +1506,18 @@ function handleIncomeSubmit(event) {
     
     state.incomes.push(newIncome);
     
-    state.logs.push({
+    const newLog = {
         id: 'log-' + Date.now(),
         date: new Date().toISOString(),
         type: 'income',
         desc: `บันทึกเงินรับเข้าคลังสีชมพู: ${desc} ยอด ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
         actor: actor
-    });
+    };
+    state.logs.push(newLog);
     
     saveToLocalStorage();
+    syncItemToFirebase('incomes', newIncome.id, newIncome);
+    syncItemToFirebase('logs', newLog.id, newLog);
     renderAll();
     
     document.getElementById('income-form').reset();
@@ -1376,7 +1594,6 @@ function confirmApprove() {
     setTimeout(() => {
         document.getElementById('transfer-progress-fill').style.width = '100%';
     }, 50);
-    
     // Save state changes after animation completes (1.3 seconds)
     setTimeout(() => {
         req.status = 'approved';
@@ -1384,16 +1601,19 @@ function confirmApprove() {
         req.transferSlip = finalTransferSlip;
         req.date = new Date().toISOString(); // Update to approval timestamp for transaction log
         
-        state.logs.push({
+        const newLog = {
             id: 'log-' + Date.now(),
             date: new Date().toISOString(),
             type: 'approve',
             requestId: req.id,
             desc: `อนุมัติการเบิกเงินสำเร็จ: ${req.item} ยอด ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} คณะสีชมพู (ฝ่าย${getDeptDisplayName(req.department)})`,
             actor: req.approvedBy
-        });
+        };
+        state.logs.push(newLog);
         
         saveToLocalStorage();
+        syncItemToFirebase('requests', req.id, req);
+        syncItemToFirebase('logs', newLog.id, newLog);
         renderAll();
         closeApproveModal();
         alert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
@@ -1428,16 +1648,19 @@ function confirmReject() {
     req.rejectReason = reason;
     req.approvedBy = state.user.name;
     
-    state.logs.push({
+    const newLog = {
         id: 'log-' + Date.now(),
         date: new Date().toISOString(),
         type: 'reject',
         requestId: req.id,
         desc: `ปฏิเสธใบเบิกเงิน: ${req.item} ยอดเงิน ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(req.department)}) เหตุผล: ${reason}`,
         actor: req.approvedBy
-    });
+    };
+    state.logs.push(newLog);
     
     saveToLocalStorage();
+    syncItemToFirebase('requests', req.id, req);
+    syncItemToFirebase('logs', newLog.id, newLog);
     renderAll();
     closeRejectModal();
     alert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
@@ -1536,6 +1759,7 @@ function handleIssueSubmit(event) {
     
     state.issues.push(newIssue);
     saveToLocalStorage();
+    syncItemToFirebase('issues', newIssue.id, newIssue);
     renderAll();
     
     // Reset Form
@@ -1630,15 +1854,18 @@ function resolveIssue(issueId) {
     issue.status = 'resolved';
     
     // Record log
-    state.logs.push({
+    const newLog = {
         id: 'log-' + Date.now(),
         date: new Date().toISOString(),
         type: 'approve',
         desc: `แก้ไขและปิดเคสแจ้งปัญหา: "${issue.title}" ของคุณ${issue.reporterName}`,
         actor: state.user.name
-    });
+    };
+    state.logs.push(newLog);
     
     saveToLocalStorage();
+    syncItemToFirebase('issues', issue.id, issue);
+    syncItemToFirebase('logs', newLog.id, newLog);
     renderAll();
     alert('บันทึกสถานะการแก้ไขปัญหาเรียบร้อย!');
 }
@@ -1652,6 +1879,7 @@ function replyIssue(issueId) {
     
     issue.reply = replyText.trim();
     saveToLocalStorage();
+    syncItemToFirebase('issues', issue.id, issue);
     renderAll();
     alert('ส่งข้อความตอบกลับเรียบร้อย!');
 }

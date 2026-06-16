@@ -378,6 +378,17 @@
                         </form>
                     </div>
 
+                    <!-- Reset & Database Settings Panel (President Only) -->
+                    <div class="panel-card" id="president-settings-panel" style="margin-top: 1.5rem; display: none;">
+                        <h2 class="panel-title"><i class="fa-solid fa-gears"></i> จัดการระบบฐานข้อมูล</h2>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            สำหรับล้างข้อมูลการเงิน ใบเบิก รายรับ ประวัติ และแจ้งปัญหาทั้งหมด เพื่อเริ่มต้นใหม่ (ล้างทั้งเครื่องนี้และคลัง Firebase)
+                        </p>
+                        <button type="button" id="btn-reset-db" class="btn btn-danger" onclick="handleSystemReset()" style="width: 100%;">
+                            <i class="fa-solid fa-trash-can"></i> ล้างข้อมูลระบบทั้งหมด (Reset Database)
+                        </button>
+                    </div>
+
 
                     <div id="president-only-warning" style="display: none; text-align: center; color: var(--accent-warning); font-size: 0.9rem;">
                         <i class="fa-solid fa-triangle-exclamation"></i> ฟังก์ชันการเงินของประธานสวัสดิการ จะเปิดใช้งานเมื่อล็อกอินระบบประธานแล้วเท่านั้น
