@@ -297,33 +297,44 @@ function sanitizeState() {
     if (!state.members || state.members.length === 0) {
         state.members = [...MEMBERS];
     } else {
-        // อัปเกรดข้อมูลที่มีอยู่แล้วให้มีฟิลด์ห้อง และแก้ไขการสะกดชื่อตามรูปภาพน้องอาม
-        const ids_5_1 = [
-            '39967', '39998', '40019', '40050', '40059', '40206', '40309', '40338', '40350',
-            '39993', '40049', '40076', '40087', '40092', '40122', '40132', '40179', '40200',
-            '40202', '40245', '40266', '40294', '40352', '40363', '40376', '40380', '42242',
-            '42260', '42283'
-        ];
+        // ตรวจสอบว่าเคยอัปเกรดข้อมูลห้องเรียนไปแล้วหรือยัง (เช็คว่ามีสมาชิกที่มีข้อมูลห้องเรียนอยู่แล้วหรือไม่)
+        const hasRooms = state.members.some(m => m.room !== undefined);
         
-        const nameMap = {
-            '40050': { firstName: 'จยุตพงศ์', lastName: 'ดีคำ' },
-            '40049': { firstName: 'ชญาดา', lastName: 'สมบูรณ์' },
-            '40087': { firstName: 'ณัฐชยาน์', lastName: 'แก้วกล้า' },
-            '40200': { firstName: 'ปัทมพร', lastName: 'กาดเกษม' }
-        };
-        
-        // เพิ่ม 40206 (ปาลปวีณ์ สินมณี) เข้าไปในระบบหากยังไม่มี
-        if (!state.members.some(m => m.id === '40206')) {
-            state.members.push({ id: '40206', firstName: 'ปาลปวีณ์', lastName: 'สินมณี', room: '5/1' });
-        }
-        
-        state.members.forEach(m => {
-            m.room = ids_5_1.includes(m.id) ? '5/1' : '5/8';
-            if (nameMap[m.id]) {
-                m.firstName = nameMap[m.id].firstName;
-                m.lastName = nameMap[m.id].lastName;
+        if (!hasRooms) {
+            // อัปเกรดข้อมูลห้องเรียนและแก้ไขตัวสะกดให้ถูกต้องเฉพาะในครั้งแรกเท่านั้น
+            const ids_5_1 = [
+                '39967', '39998', '40019', '40050', '40059', '40206', '40309', '40338', '40350',
+                '39993', '40049', '40076', '40087', '40092', '40122', '40132', '40179', '40200',
+                '40202', '40245', '40266', '40294', '40352', '40363', '40376', '40380', '42242',
+                '42260', '42283'
+            ];
+            
+            const nameMap = {
+                '40050': { firstName: 'จยุตพงศ์', lastName: 'ดีคำ' },
+                '40049': { firstName: 'ชญาดา', lastName: 'สมบูรณ์' },
+                '40087': { firstName: 'ณัฐชยาน์', lastName: 'แก้วกล้า' },
+                '40200': { firstName: 'ปัทมพร', lastName: 'กาดเกษม' }
+            };
+            
+            // เพิ่ม 40206 (ปาลปวีณ์ สินมณี) เข้าไปในระบบหากยังไม่มี
+            if (!state.members.some(m => m.id === '40206')) {
+                state.members.push({ id: '40206', firstName: 'ปาลปวีณ์', lastName: 'สินมณี', room: '5/1' });
             }
-        });
+            
+            state.members.forEach(m => {
+                m.room = ids_5_1.includes(m.id) ? '5/1' : '5/8';
+                if (nameMap[m.id]) {
+                    m.firstName = nameMap[m.id].firstName;
+                    m.lastName = nameMap[m.id].lastName;
+                }
+            });
+            
+            // บันทึกและซิงก์ข้อมูลทันทีหลังอัปเกรด
+            saveToLocalStorage();
+            if (useFirebase && db) {
+                syncItemToFirebase('settings', 'members', { list: state.members });
+            }
+        }
     }
 }
 
