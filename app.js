@@ -519,7 +519,7 @@ function clearFirebaseDatabase() {
 // Handle system database reset click
 function handleSystemReset() {
     if (!state.user || state.user.role !== 'president' || state.user.username !== 'admin') {
-        alert("เฉพาะแอดมินหลัก (username: admin) เท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
+        alert("เฉพาะผู้ดูแลระบบหลัก (username: admin) เท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
         return;
     }
     
@@ -690,7 +690,7 @@ function checkSession() {
         
         if (state.user.role === 'president') {
             if (state.user.username === 'admin') {
-                roleDisplay = `<i class="fa-solid fa-user-shield"></i> แอดมิน`;
+                roleDisplay = `<i class="fa-solid fa-user-shield"></i> ผู้ดูแลระบบ`;
             } else if (state.user.username === 'km789') {
                 roleDisplay = `<i class="fa-solid fa-crown"></i> รองประธานสวัสดิการ`;
             } else {
@@ -758,7 +758,7 @@ function autofillUserForms() {
     // Autofill issue reporter info
     const issueReporterInput = document.getElementById('issue-reporter');
     if (issueReporterInput && state.user) {
-        const displayRoleName = state.user.username === 'admin' ? 'แอดมิน' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
+        const displayRoleName = state.user.username === 'admin' ? 'ผู้ดูแลระบบ' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
         issueReporterInput.value = `${state.user.name} (${displayRoleName})`;
     }
     
@@ -789,7 +789,7 @@ function autofillUserForms() {
         
         // Disable request submission
         requestFormWarning.style.display = 'block';
-        const displayRoleName = state.user.username === 'admin' ? 'แอดมิน' : (state.user.username === 'km789' ? 'รองประธานสวัสดิการ' : 'ประธานสวัสดิการ');
+        const displayRoleName = state.user.username === 'admin' ? 'ผู้ดูแลระบบ' : (state.user.username === 'km789' ? 'รองประธานสวัสดิการ' : 'ประธานสวัสดิการ');
         requestFormWarning.innerHTML = `<i class="fa-solid fa-circle-info"></i> คุณเข้าสู่ระบบด้วยสิทธิ์ "${displayRoleName}" ซึ่งไม่สามารถยื่นเบิกเงินได้`;
         submitRequestBtn.setAttribute('disabled', 'true');
         
@@ -885,7 +885,7 @@ function handlePresidentLogin(event) {
         errorMsg.style.display = 'none';
         
         const displayName = user === 'admin'
-            ? 'แอดมิน'
+            ? 'ผู้ดูแลระบบ'
             : (user === 'km789' ? 'รองประธานสวัสดิการ' : 'ประธานสวัสดิการ');
             
         state.user = {
@@ -1794,7 +1794,7 @@ function handleIssueSubmit(event) {
     const category = document.getElementById('issue-category').value;
     const desc = document.getElementById('issue-desc').value.trim();
     const reporterName = state.user.name;
-    const reporterRole = state.user.username === 'admin' ? 'แอดมิน' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
+    const reporterRole = state.user.username === 'admin' ? 'ผู้ดูแลระบบ' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
     
     const newIssue = {
         id: 'issue-' + Date.now(),
@@ -1816,7 +1816,7 @@ function handleIssueSubmit(event) {
     // Reset Form
     document.getElementById('issue-report-form').reset();
     if (document.getElementById('issue-reporter')) {
-        const displayRoleName = state.user.username === 'admin' ? 'แอดมิน' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
+        const displayRoleName = state.user.username === 'admin' ? 'ผู้ดูแลระบบ' : (state.user.role === 'president' ? 'ประธาน' : 'สมาชิก');
         document.getElementById('issue-reporter').value = `${state.user.name} (${displayRoleName})`;
     }
     
