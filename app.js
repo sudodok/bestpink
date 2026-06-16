@@ -1792,7 +1792,8 @@ function renderIssuesList() {
     const categoryNames = {
         ui_bug: '🐞 บั๊กหน้าเว็บ / ระบบค้าง',
         finance_error: '💰 ปัญหายอดเงิน / โอนเงินผิดพลาด',
-        general_suggestion: '💡 ข้อเสนอแนะทั่วไป'
+        general_suggestion: '💡 ข้อเสนอแนะทั่วไป',
+        others: '❓ อื่น ๆ'
     };
     
     sortedIssues.forEach(issue => {
