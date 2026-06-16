@@ -47,7 +47,8 @@ let state = {
     },
     requests: [],        // [{id, name, department, item, amount, category, memo, receipt, productPhoto, qrcode, transferSlip, status, rejectReason, approvedBy, date}]
     logs: [],            // [{id, date, type, desc, actor}]
-    issues: []           // [{id, title, category, reporterName, reporterRole, desc, status, date, reply}]
+    issues: [],          // [{id, title, category, reporterName, reporterRole, desc, status, date, reply}]
+    members: []          // Dynamic member list [{id, firstName, lastName}]
 };
 
 // Standard Departments mapping
@@ -147,7 +148,7 @@ function handleMemberSearch(query) {
         return;
     }
 
-    const filtered = MEMBERS.filter(m =>
+    const filtered = state.members.filter(m =>
         m.firstName.includes(q) ||
         m.lastName.includes(q) ||
         (m.firstName + m.lastName).includes(q) ||
@@ -262,6 +263,7 @@ function seedFirebaseFromLocal() {
     state.logs.forEach(log => syncItemToFirebase('logs', log.id, log));
     state.issues.forEach(issue => syncItemToFirebase('issues', issue.id, issue));
     syncItemToFirebase('settings', 'allocations', state.allocations);
+    syncItemToFirebase('settings', 'members', { list: state.members });
 }
 
 function sanitizeState() {
@@ -272,7 +274,8 @@ function sanitizeState() {
             allocations: { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 },
             requests: [],
             logs: [],
-            issues: []
+            issues: [],
+            members: [...MEMBERS]
         };
         return;
     }
@@ -290,6 +293,9 @@ function sanitizeState() {
     if (!state.requests) state.requests = [];
     if (!state.logs) state.logs = [];
     if (!state.issues) state.issues = [];
+    if (!state.members || state.members.length === 0) {
+        state.members = [...MEMBERS];
+    }
 }
 
 function loadFromDatabase(callback) {
@@ -312,8 +318,9 @@ function loadFromDatabase(callback) {
             db.collection('incomes').get(),
             db.collection('logs').get(),
             db.collection('issues').get(),
-            db.collection('settings').doc('allocations').get()
-        ]).then(([requestsSnap, incomesSnap, logsSnap, issuesSnap, allocationsSnap]) => {
+            db.collection('settings').doc('allocations').get(),
+            db.collection('settings').doc('members').get()
+        ]).then(([requestsSnap, incomesSnap, logsSnap, issuesSnap, allocationsSnap, membersSnap]) => {
             if (hasLoaded) return;
             hasLoaded = true;
             clearTimeout(fbTimeout);
@@ -345,6 +352,10 @@ function loadFromDatabase(callback) {
                     state.allocations = allocationsSnap.data();
                 } else {
                     state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
+                }
+
+                if (membersSnap && membersSnap.exists) {
+                    state.members = membersSnap.data().list || [];
                 }
                 
                 state.user = currentUser;
@@ -476,6 +487,22 @@ function setupFirebaseRealtimeListener() {
         }
     }, err => console.error("Realtime allocations sync error:", err));
     firebaseListeners.push(unsubAllocations);
+
+    // 6. Listen to members
+    const unsubMembers = db.collection('settings').doc('members').onSnapshot(doc => {
+        if (doc.exists) {
+            state.members = doc.data().list || [];
+            saveToLocalStorage();
+            if (state.user) {
+                renderAll();
+                const presidentMembersPanel = document.getElementById('president-members-panel');
+                if (presidentMembersPanel && presidentMembersPanel.style.display === 'block') {
+                    renderAdminMembersList();
+                }
+            }
+        }
+    }, err => console.error("Realtime members sync error:", err));
+    firebaseListeners.push(unsubMembers);
 }
 
 // Clear all data from Firebase Firestore
@@ -509,11 +536,12 @@ function clearFirebaseDatabase() {
     });
 
     const pSettings = db.collection('settings').doc('allocations').delete();
+    const pMembers = db.collection('settings').doc('members').delete();
 
     // Also delete the old flat state doc to clean up the user's DB
     const pOldDoc = db.collection('settings').doc('pink_team_state').delete();
 
-    return Promise.all([pRequests, pIncomes, pLogs, pIssues, pSettings, pOldDoc]);
+    return Promise.all([pRequests, pIncomes, pLogs, pIssues, pSettings, pOldDoc, pMembers]);
 }
 
 // Handle system database reset click
@@ -641,6 +669,8 @@ function resetState() {
     state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
     state.requests = [];
     state.logs = [];
+    state.issues = [];
+    state.members = [...MEMBERS];
     saveToLocalStorage();
 }
 
@@ -779,8 +809,10 @@ function autofillUserForms() {
         incomeFormInputs.forEach(el => el.setAttribute('disabled', 'true'));
         if (incomeActor) incomeActor.value = '';
         
-        // Hide president settings panel
+        // Hide president settings and members panel
         if (presidentSettingsPanel) presidentSettingsPanel.style.display = 'none';
+        const presidentMembersPanel = document.getElementById('president-members-panel');
+        if (presidentMembersPanel) presidentMembersPanel.style.display = 'none';
     } else {
         // President mode
         nameInput.value = '—';
@@ -798,12 +830,16 @@ function autofillUserForms() {
         incomeFormInputs.forEach(el => el.removeAttribute('disabled'));
         if (incomeActor) incomeActor.value = state.user.name;
         
-        // Show president settings panel only if username is 'admin'
-        if (presidentSettingsPanel) {
+        // Show president settings and members panel only if username is 'admin'
+        const presidentMembersPanel = document.getElementById('president-members-panel');
+        if (presidentSettingsPanel && presidentMembersPanel) {
             if (state.user.username === 'admin') {
                 presidentSettingsPanel.style.display = 'block';
+                presidentMembersPanel.style.display = 'block';
+                renderAdminMembersList();
             } else {
                 presidentSettingsPanel.style.display = 'none';
+                presidentMembersPanel.style.display = 'none';
             }
         }
     }
@@ -1974,4 +2010,118 @@ function replyIssue(issueId) {
     syncItemToFirebase('issues', issue.id, issue);
     renderAll();
     alert('ส่งข้อความตอบกลับเรียบร้อย!');
+}
+
+// ========== ADMIN: MEMBER MANAGEMENT SYSTEM ==========
+function renderAdminMembersList() {
+    const list = document.getElementById('admin-members-list');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    // Sort members by ID
+    const sortedMembers = [...state.members].sort((a, b) => a.id.localeCompare(b.id));
+    
+    sortedMembers.forEach(m => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border-color)';
+        row.innerHTML = `
+            <td style="padding: 0.5rem; font-family: monospace; font-weight: bold; color: var(--text-secondary);">${m.id}</td>
+            <td style="padding: 0.5rem; color: var(--text-primary);">${m.firstName} ${m.lastName}</td>
+            <td style="padding: 0.5rem; text-align: right; display: flex; justify-content: flex-end; gap: 0.35rem;">
+                <button class="btn" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-primary); color: white; border: none; border-radius: 0.25rem; width: auto;" onclick="startEditMember('${m.id}')">
+                    <i class="fa-solid fa-edit"></i> แก้ไข
+                </button>
+                <button class="btn" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-danger); color: white; border: none; border-radius: 0.25rem; width: auto;" onclick="deleteMember('${m.id}')">
+                    <i class="fa-solid fa-trash-can"></i> ลบ
+                </button>
+            </td>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function startEditMember(id) {
+    const member = state.members.find(m => m.id === id);
+    if (!member) return;
+    
+    document.getElementById('manage-member-mode').value = 'edit';
+    document.getElementById('manage-member-id').value = member.id;
+    document.getElementById('manage-member-id').setAttribute('readonly', 'true');
+    document.getElementById('manage-member-id').style.backgroundColor = 'var(--bg-tertiary)';
+    document.getElementById('manage-member-firstname').value = member.firstName;
+    document.getElementById('manage-member-lastName') ? document.getElementById('manage-member-lastName').value = member.lastName : document.getElementById('manage-member-lastname').value = member.lastName;
+    
+    const saveBtn = document.getElementById('btn-save-member');
+    saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> บันทึกการแก้ไข';
+    saveBtn.className = 'btn btn-success';
+    
+    document.getElementById('btn-cancel-edit-member').style.display = 'inline-block';
+}
+
+function cancelEditMember() {
+    document.getElementById('member-manage-form').reset();
+    document.getElementById('manage-member-mode').value = 'add';
+    
+    const idInput = document.getElementById('manage-member-id');
+    idInput.removeAttribute('readonly');
+    idInput.style.backgroundColor = '';
+    
+    const saveBtn = document.getElementById('btn-save-member');
+    saveBtn.innerHTML = '<i class="fa-solid fa-plus-circle"></i> เพิ่มสมาชิกใหม่';
+    saveBtn.className = 'btn btn-primary';
+    
+    document.getElementById('btn-cancel-edit-member').style.display = 'none';
+}
+
+function handleSaveMember(event) {
+    event.preventDefault();
+    
+    const mode = document.getElementById('manage-member-mode').value;
+    const id = document.getElementById('manage-member-id').value.trim();
+    const firstName = document.getElementById('manage-member-firstname').value.trim();
+    const lastName = document.getElementById('manage-member-lastname').value.trim();
+    
+    if (!id || !firstName || !lastName) {
+        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        return;
+    }
+    
+    if (mode === 'add') {
+        const exists = state.members.some(m => m.id === id);
+        if (exists) {
+            alert('❌ รหัสประจำตัว (รหัสผ่านเข้าเครื่อง) นี้มีอยู่ในระบบแล้ว');
+            return;
+        }
+        state.members.push({ id, firstName, lastName });
+    } else {
+        const member = state.members.find(m => m.id === id);
+        if (member) {
+            member.firstName = firstName;
+            member.lastName = lastName;
+        }
+    }
+    
+    saveToLocalStorage();
+    syncItemToFirebase('settings', 'members', { list: state.members });
+    
+    renderAdminMembersList();
+    cancelEditMember();
+    alert('บันทึกข้อมูลสมาชิกเรียบร้อย!');
+}
+
+function deleteMember(id) {
+    const member = state.members.find(m => m.id === id);
+    if (!member) return;
+    
+    if (!confirm(`⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบสมาชิก "${member.firstName} ${member.lastName}" (รหัส: ${member.id}) ออกจากระบบ?`)) {
+        return;
+    }
+    
+    state.members = state.members.filter(m => m.id !== id);
+    
+    saveToLocalStorage();
+    syncItemToFirebase('settings', 'members', { list: state.members });
+    
+    renderAdminMembersList();
+    alert('ลบรายชื่อสมาชิกเรียบร้อย!');
 }
