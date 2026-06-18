@@ -262,6 +262,64 @@ function closeCustomAlert() {
     }
 }
 
+// ========== Custom Confirm Dialog (Replaces native window.confirm) ==========
+let customConfirmCallback = null;
+function showCustomConfirm(message, callback) {
+    const modal = document.getElementById('custom-confirm-modal');
+    const messageEl = document.getElementById('custom-confirm-message');
+    const yesBtn = document.getElementById('custom-confirm-yes-btn');
+    
+    messageEl.textContent = message;
+    customConfirmCallback = callback;
+    
+    yesBtn.onclick = () => {
+        closeCustomConfirm(true);
+    };
+    
+    modal.classList.add('active');
+}
+
+function closeCustomConfirm(result) {
+    const modal = document.getElementById('custom-confirm-modal');
+    modal.classList.remove('active');
+    if (customConfirmCallback) {
+        const cb = customConfirmCallback;
+        customConfirmCallback = null;
+        cb(result);
+    }
+}
+
+// ========== Custom Prompt Dialog (Replaces native window.prompt) ==========
+let customPromptCallback = null;
+function showCustomPrompt(message, defaultValue, callback) {
+    const modal = document.getElementById('custom-prompt-modal');
+    const labelEl = document.getElementById('custom-prompt-label');
+    const inputEl = document.getElementById('custom-prompt-input');
+    const submitBtn = document.getElementById('custom-prompt-submit-btn');
+    
+    labelEl.textContent = message;
+    inputEl.value = defaultValue || '';
+    customPromptCallback = callback;
+    
+    submitBtn.onclick = () => {
+        const value = inputEl.value.trim();
+        closeCustomPrompt(value);
+    };
+    
+    modal.classList.add('active');
+    setTimeout(() => inputEl.focus(), 150);
+}
+
+function closeCustomPrompt(result) {
+    const modal = document.getElementById('custom-prompt-modal');
+    modal.classList.remove('active');
+    if (customPromptCallback) {
+        const cb = customPromptCallback;
+        customPromptCallback = null;
+        cb(result);
+    }
+}
+
 // Helper: Format Date Time
 function formatDateTime(isoString) {
     const d = new Date(isoString);
@@ -655,49 +713,50 @@ function handleSystemReset() {
         return;
     }
     
-    if (!confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตข้อมูลทั้งหมดในระบบ? การกระทำนี้จะลบใบเบิก รายรับ บันทึกเหตุการณ์ และการแจ้งปัญหาทั้งหมด ทั้งในเครื่องนี้และในคลัง Firebase (ถ้าเชื่อมต่ออยู่) และไม่สามารถกู้คืนได้!")) {
-        return;
-    }
-    
-    const confirmText = prompt("พิมพ์คำว่า 'RESET' เพื่อยืนยันการล้างข้อมูลระบบ:");
-    if (confirmText !== 'RESET') {
-        showCustomAlert("ยกเลิกการรีเซ็ตระบบเนื่องจากยืนยันข้อความไม่ถูกต้อง");
-        return;
-    }
-    
-    showCustomAlert("กำลังรีเซ็ตและล้างฐานข้อมูลระบบ... กรุณารอสักครู่");
-    
-    clearFirebaseDatabase().then(() => {
-        state.incomes = [];
-        state.requests = [];
-        state.logs = [];
-        state.issues = [];
-        state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
+    showCustomConfirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตข้อมูลทั้งหมดในระบบ? การกระทำนี้จะลบใบเบิก รายรับ บันทึกเหตุการณ์ และการแจ้งปัญหาทั้งหมด ทั้งในเครื่องนี้และในคลัง Firebase (ถ้าเชื่อมต่ออยู่) และไม่สามารถกู้คืนได้!", (confirmed) => {
+        if (!confirmed) return;
         
-        saveToLocalStorage();
-        
-    try {
-        const req = indexedDB.deleteDatabase('pink_team_finance_db');
-        req.onsuccess = () => {
-            localStorage.removeItem('pink_team_finance_state_v3');
-            showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
-                window.location.reload();
+        showCustomPrompt("พิมพ์คำว่า 'RESET' เพื่อยืนยันการล้างข้อมูลระบบ:", "", (confirmText) => {
+            if (confirmText !== 'RESET') {
+                showCustomAlert("ยกเลิกการรีเซ็ตระบบเนื่องจากยืนยันข้อความไม่ถูกต้อง");
+                return;
+            }
+            
+            showCustomAlert("กำลังรีเซ็ตและล้างฐานข้อมูลระบบ... กรุณารอสักครู่");
+            
+            clearFirebaseDatabase().then(() => {
+                state.incomes = [];
+                state.requests = [];
+                state.logs = [];
+                state.issues = [];
+                state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
+                
+                saveToLocalStorage();
+                
+                try {
+                    const req = indexedDB.deleteDatabase('pink_team_finance_db');
+                    req.onsuccess = () => {
+                        localStorage.removeItem('pink_team_finance_state_v3');
+                        showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
+                            window.location.reload();
+                        });
+                    };
+                    req.onerror = () => {
+                        localStorage.removeItem('pink_team_finance_state_v3');
+                        showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
+                            window.location.reload();
+                        });
+                    };
+                } catch(e) {
+                    localStorage.removeItem('pink_team_finance_state_v3');
+                    window.location.reload();
+                }
+            }).catch(err => {
+                console.error("Purge failure:", err);
+                showCustomAlert("รีเซ็ตระบบผิดพลาด: " + err.message);
             });
-        };
-        req.onerror = () => {
-            localStorage.removeItem('pink_team_finance_state_v3');
-            showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
-                window.location.reload();
-            });
-        };
-    } catch(e) {
-        localStorage.removeItem('pink_team_finance_state_v3');
-        window.location.reload();
-    }
-}).catch(err => {
-    console.error("Purge failure:", err);
-    showCustomAlert("รีเซ็ตระบบผิดพลาด: " + err.message);
-});
+        });
+    });
 }
 
 function loadLocalData(callback) {
@@ -2123,14 +2182,15 @@ function replyIssue(issueId) {
     const issue = state.issues.find(i => i.id === issueId);
     if (!issue) return;
     
-    const replyText = prompt('กรอกข้อความตอบกลับ:', issue.reply || '');
-    if (replyText === null) return; // user cancelled
-    
-    issue.reply = replyText.trim();
-    saveToLocalStorage();
-    syncItemToFirebase('issues', issue.id, issue);
-    renderAll();
-    showCustomAlert('ส่งข้อความตอบกลับเรียบร้อย!');
+    showCustomPrompt('กรอกข้อความตอบกลับ:', issue.reply || '', (replyText) => {
+        if (replyText === null) return; // user cancelled
+        
+        issue.reply = replyText.trim();
+        saveToLocalStorage();
+        syncItemToFirebase('issues', issue.id, issue);
+        renderAll();
+        showCustomAlert('ส่งข้อความตอบกลับเรียบร้อย!');
+    });
 }
 
 // ========== ADMIN: MEMBER MANAGEMENT SYSTEM ==========
@@ -2280,27 +2340,27 @@ function deleteMember(id) {
     const member = state.members.find(m => m.id === id);
     if (!member) return;
     
-    if (!confirm(`⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบสมาชิก "${member.firstName} ${member.lastName}" (รหัส: ${member.id}) ออกจากระบบ?`)) {
-        return;
-    }
-    
-    const details = `${member.firstName} ${member.lastName} (รหัส: ${member.id}, ห้อง: ${member.room || '5/8'})`;
-    state.members = state.members.filter(m => m.id !== id);
-    
-    // บันทึก Log การลบ
-    const newLog = {
-        id: 'log-' + Date.now(),
-        date: new Date().toISOString(),
-        type: 'member_delete',
-        desc: `ลบสมาชิกออกจากระบบ: ${details}`,
-        actor: state.user ? state.user.name : 'ระบบ'
-    };
-    state.logs.push(newLog);
-    syncItemToFirebase('logs', newLog.id, newLog);
-    
-    saveToLocalStorage();
-    syncItemToFirebase('settings', 'members', { list: state.members });
-    
-    renderAdminMembersList();
-    showCustomAlert('ลบรายชื่อสมาชิกเรียบร้อย!');
+    showCustomConfirm(`⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบสมาชิก "${member.firstName} ${member.lastName}" (รหัส: ${member.id}) ออกจากระบบ?`, (confirmed) => {
+        if (!confirmed) return;
+        
+        const details = `${member.firstName} ${member.lastName} (รหัส: ${member.id}, ห้อง: ${member.room || '5/8'})`;
+        state.members = state.members.filter(m => m.id !== id);
+        
+        // บันทึก Log การลบ
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: 'member_delete',
+            desc: `ลบสมาชิกออกจากระบบ: ${details}`,
+            actor: state.user ? state.user.name : 'ระบบ'
+        };
+        state.logs.push(newLog);
+        syncItemToFirebase('logs', newLog.id, newLog);
+        
+        saveToLocalStorage();
+        syncItemToFirebase('settings', 'members', { list: state.members });
+        
+        renderAdminMembersList();
+        showCustomAlert('ลบรายชื่อสมาชิกเรียบร้อย!');
+    });
 }

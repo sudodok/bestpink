@@ -673,6 +673,36 @@
         </div>
     </div>
 
+    <!-- Custom Confirm Modal -->
+    <div id="custom-confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem; border-radius: 1.25rem;">
+            <div style="font-size: 3.5rem; color: #f59e0b; margin-bottom: 1.25rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 id="custom-confirm-title" style="margin-bottom: 0.75rem; font-size: 1.35rem; color: var(--text-primary); font-family: var(--font-sans);">ยืนยันการทำรายการ</h3>
+            <p id="custom-confirm-message" style="margin-bottom: 1.75rem; color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; font-family: var(--font-sans);"></p>
+            <div style="display: flex; gap: 0.75rem;">
+                <button id="custom-confirm-yes-btn" class="btn btn-danger" style="flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;">ยืนยัน</button>
+                <button id="custom-confirm-no-btn" class="btn" style="flex: 1; background: var(--bg-tertiary); padding: 0.75rem 1rem; font-size: 0.95rem;" onclick="closeCustomConfirm(false)">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Prompt Modal -->
+    <div id="custom-prompt-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px; padding: 2rem; border-radius: 1.25rem;">
+            <h3 id="custom-prompt-title" style="margin-bottom: 1.25rem; font-size: 1.35rem; color: var(--text-primary); text-align: center; font-family: var(--font-sans);">กรอกข้อมูล</h3>
+            <div class="form-group" style="margin-bottom: 1.75rem;">
+                <label id="custom-prompt-label" for="custom-prompt-input" style="margin-bottom: 0.5rem; display: block; font-size: 0.9rem; color: var(--text-secondary); font-family: var(--font-sans);"></label>
+                <input type="text" id="custom-prompt-input" class="form-control" placeholder="พิมพ์ข้อความที่นี่..." required style="font-size: 16px !important;">
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button id="custom-prompt-submit-btn" class="btn btn-primary" style="flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;">ตกลง</button>
+                <button id="custom-prompt-cancel-btn" class="btn" style="flex: 1; background: var(--bg-tertiary); padding: 0.75rem 1rem; font-size: 0.95rem;" onclick="closeCustomPrompt(null)">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase Compat SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
