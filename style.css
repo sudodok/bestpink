@@ -1312,7 +1312,7 @@ body, main, header, .panel-card, .metric-card, .tab-btn, .form-control, table, t
 
     /* Form controls mobile responsive scaling */
     .form-control {
-        font-size: 0.85rem !important;
+        font-size: 16px !important;
         padding: 0.65rem 0.75rem !important;
     }
 
