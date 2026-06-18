@@ -676,26 +676,28 @@ function handleSystemReset() {
         
         saveToLocalStorage();
         
-        try {
-            const req = indexedDB.deleteDatabase('pink_team_finance_db');
-            req.onsuccess = () => {
-                localStorage.removeItem('pink_team_finance_state_v3');
-                showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
-                    window.location.reload();
-                });
-            req.onerror = () => {
-                localStorage.removeItem('pink_team_finance_state_v3');
-                showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
-                    window.location.reload();
-                });
-        } catch(e) {
+    try {
+        const req = indexedDB.deleteDatabase('pink_team_finance_db');
+        req.onsuccess = () => {
             localStorage.removeItem('pink_team_finance_state_v3');
-            window.location.reload();
-        }
-    }).catch(err => {
-        console.error("Purge failure:", err);
-        showCustomAlert("รีเซ็ตระบบผิดพลาด: " + err.message);
-    });
+            showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
+                window.location.reload();
+            });
+        };
+        req.onerror = () => {
+            localStorage.removeItem('pink_team_finance_state_v3');
+            showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
+                window.location.reload();
+            });
+        };
+    } catch(e) {
+        localStorage.removeItem('pink_team_finance_state_v3');
+        window.location.reload();
+    }
+}).catch(err => {
+    console.error("Purge failure:", err);
+    showCustomAlert("รีเซ็ตระบบผิดพลาด: " + err.message);
+});
 }
 
 function loadLocalData(callback) {
