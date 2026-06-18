@@ -198,6 +198,70 @@ function formatCurrency(amount) {
     return '฿' + amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// ========== Custom Alert Dialog (Replaces native browser alerts) ==========
+let customAlertCallback = null;
+
+function showCustomAlert(message, type = 'info', callback = null) {
+    const modal = document.getElementById('custom-alert-modal');
+    const iconEl = document.getElementById('custom-alert-icon');
+    const titleEl = document.getElementById('custom-alert-title');
+    const messageEl = document.getElementById('custom-alert-message');
+    
+    customAlertCallback = callback;
+    messageEl.textContent = message;
+    
+    let iconHTML = '';
+    let titleText = 'แจ้งเตือน';
+    let iconColor = 'var(--accent-primary)';
+    
+    // Check keyword patterns in message if type is default 'info' to auto-detect the style
+    let detectedType = type;
+    if (type === 'info' || !type) {
+        const lowerMsg = message.toLowerCase();
+        if (lowerMsg.includes('สำเร็จ') || lowerMsg.includes('เรียบร้อย')) {
+            detectedType = 'success';
+        } else if (lowerMsg.includes('❌') || lowerMsg.includes('ผิดพลาด') || lowerMsg.includes('ไม่สำเร็จ') || lowerMsg.includes('ไม่ถูกต้อง') || lowerMsg.includes('เฉพาะ')) {
+            detectedType = 'error';
+        } else if (lowerMsg.includes('⚠️') || lowerMsg.includes('เตือน') || lowerMsg.includes('กรุณา')) {
+            detectedType = 'warning';
+        }
+    }
+    
+    if (detectedType === 'success') {
+        iconHTML = '<i class="fa-solid fa-circle-check"></i>';
+        titleText = 'สำเร็จ';
+        iconColor = '#10b981'; // Bright green
+    } else if (detectedType === 'error' || detectedType === 'danger') {
+        iconHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+        titleText = 'เกิดข้อผิดพลาด';
+        iconColor = '#ef4444'; // Red
+    } else if (detectedType === 'warning') {
+        iconHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        titleText = 'ข้อแนะนำ / คำเตือน';
+        iconColor = '#f59e0b'; // Amber/Yellow
+    } else {
+        iconHTML = '<i class="fa-solid fa-circle-info"></i>';
+        titleText = 'แจ้งข้อมูล';
+        iconColor = '#3b82f6'; // Blue
+    }
+    
+    iconEl.innerHTML = iconHTML;
+    iconEl.style.color = iconColor;
+    titleEl.textContent = titleText;
+    
+    modal.classList.add('active');
+}
+
+function closeCustomAlert() {
+    const modal = document.getElementById('custom-alert-modal');
+    modal.classList.remove('active');
+    if (customAlertCallback && typeof customAlertCallback === 'function') {
+        const cb = customAlertCallback;
+        customAlertCallback = null;
+        cb();
+    }
+}
+
 // Helper: Format Date Time
 function formatDateTime(isoString) {
     const d = new Date(isoString);
@@ -217,7 +281,7 @@ function saveToLocalStorage() {
     } catch (e) {
         console.error("LocalStorage save failed:", e);
         if (e.name === 'QuotaExceededError' || e.code === 22 || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            alert("⚠️ บันทึกข้อมูลลงเบราว์เซอร์ไม่สำเร็จเนื่องจากขนาดรูปภาพใหญ่เกินขีดจำกัด (Quota Exceeded) ระบบจะพยายามบันทึกลงฐานข้อมูลสำรอง IndexedDB แทน");
+            showCustomAlert("⚠️ บันทึกข้อมูลลงเบราว์เซอร์ไม่สำเร็จเนื่องจากขนาดรูปภาพใหญ่เกินขีดจำกัด (Quota Exceeded) ระบบจะพยายามบันทึกลงฐานข้อมูลสำรอง IndexedDB แทน");
         }
     }
     
@@ -587,7 +651,7 @@ function clearFirebaseDatabase() {
 // Handle system database reset click
 function handleSystemReset() {
     if (!state.user || state.user.role !== 'president' || state.user.username !== 'admin') {
-        alert("เฉพาะผู้ดูแลระบบหลัก (username: admin) เท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
+        showCustomAlert("เฉพาะผู้ดูแลระบบหลัก (username: admin) เท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
         return;
     }
     
@@ -597,11 +661,11 @@ function handleSystemReset() {
     
     const confirmText = prompt("พิมพ์คำว่า 'RESET' เพื่อยืนยันการล้างข้อมูลระบบ:");
     if (confirmText !== 'RESET') {
-        alert("ยกเลิกการรีเซ็ตระบบเนื่องจากยืนยันข้อความไม่ถูกต้อง");
+        showCustomAlert("ยกเลิกการรีเซ็ตระบบเนื่องจากยืนยันข้อความไม่ถูกต้อง");
         return;
     }
     
-    alert("กำลังรีเซ็ตและล้างฐานข้อมูลระบบ... กรุณารอสักครู่");
+    showCustomAlert("กำลังรีเซ็ตและล้างฐานข้อมูลระบบ... กรุณารอสักครู่");
     
     clearFirebaseDatabase().then(() => {
         state.incomes = [];
@@ -616,21 +680,21 @@ function handleSystemReset() {
             const req = indexedDB.deleteDatabase('pink_team_finance_db');
             req.onsuccess = () => {
                 localStorage.removeItem('pink_team_finance_state_v3');
-                alert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่");
-                window.location.reload();
-            };
+                showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
+                    window.location.reload();
+                });
             req.onerror = () => {
                 localStorage.removeItem('pink_team_finance_state_v3');
-                alert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่");
-                window.location.reload();
-            };
+                showCustomAlert("ล้างข้อมูลและรีเซ็ตระบบเสร็จสิ้นแล้ว! หน้าเว็บจะรีโหลดใหม่", "success", () => {
+                    window.location.reload();
+                });
         } catch(e) {
             localStorage.removeItem('pink_team_finance_state_v3');
             window.location.reload();
         }
     }).catch(err => {
         console.error("Purge failure:", err);
-        alert("รีเซ็ตระบบผิดพลาด: " + err.message);
+        showCustomAlert("รีเซ็ตระบบผิดพลาด: " + err.message);
     });
 }
 
@@ -922,7 +986,7 @@ function handleMemberLogin(event) {
 
     // ต้องเลือกชื่อจาก list
     if (!memberId) {
-        alert('กรุณาเลือกชื่อจากรายชื่อที่แนะนำ');
+        showCustomAlert('กรุณาเลือกชื่อจากรายชื่อที่แนะนำ');
         document.getElementById('login-member-name').focus();
         return;
     }
@@ -1545,7 +1609,7 @@ function handleRequestSubmit(event) {
     event.preventDefault();
     
     if (!state.user || state.user.role !== 'purchaser') {
-        alert('เฉพาะสมาชิกในสีชมพูเท่านั้นที่มีสิทธิ์เบิกจ่ายเงิน');
+        showCustomAlert('เฉพาะสมาชิกในสีชมพูเท่านั้นที่มีสิทธิ์เบิกจ่ายเงิน');
         return;
     }
     
@@ -1615,7 +1679,7 @@ function handleRequestSubmit(event) {
     
     document.getElementById('form-budget-warning').style.display = 'none';
     
-    alert('ส่งใบเบิกเข้าคลังสวัสดิการสำเร็จเรียบร้อย! ประธานสวัสดิการสีชมพูจะสแกนโอนเงินตามลำดับคิว');
+    showCustomAlert('ส่งใบเบิกเข้าคลังสวัสดิการสำเร็จเรียบร้อย! ประธานสวัสดิการสีชมพูจะสแกนโอนเงินตามลำดับคิว');
     switchTab('request-view');
 }
 
@@ -1624,7 +1688,7 @@ function handleIncomeSubmit(event) {
     event.preventDefault();
     
     if (!state.user || state.user.role !== 'president') {
-        alert('เฉพาะประธานสวัสดิการเท่านั้นที่บันทึกรายรับของสีชมพูได้');
+        showCustomAlert('เฉพาะประธานสวัสดิการเท่านั้นที่บันทึกรายรับของสีชมพูได้');
         return;
     }
     
@@ -1658,7 +1722,7 @@ function handleIncomeSubmit(event) {
     
     document.getElementById('income-form').reset();
     document.getElementById('inc-actor').value = state.user.name;
-    alert('บันทึกยอดเงินรับเข้าคลังเรียบร้อย!');
+    showCustomAlert('บันทึกยอดเงินรับเข้าคลังเรียบร้อย!');
 }
 
 // Quota allocation features removed as per configuration updates
@@ -1752,7 +1816,7 @@ function confirmApprove() {
         syncItemToFirebase('logs', newLog.id, newLog);
         renderAll();
         closeApproveModal();
-        alert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
+        showCustomAlert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
     }, 1300);
 }
 
@@ -1773,7 +1837,7 @@ function confirmReject() {
     const reason = document.getElementById('reject-reason').value.trim();
     
     if (!reason) {
-        alert('กรุณากรอกระบุเหตุผลการปฏิเสธการชำระเงิน');
+        showCustomAlert('กรุณากรอกระบุเหตุผลการปฏิเสธการชำระเงิน');
         return;
     }
     
@@ -1799,7 +1863,7 @@ function confirmReject() {
     syncItemToFirebase('logs', newLog.id, newLog);
     renderAll();
     closeRejectModal();
-    alert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
+    showCustomAlert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
 }
 
 // Render Member's Personal History
@@ -1871,7 +1935,7 @@ function toggleTheme() {
 function handleIssueSubmit(event) {
     event.preventDefault();
     if (!state.user) {
-        alert('กรุณาเข้าสู่ระบบก่อนแจ้งปัญหา');
+        showCustomAlert('กรุณาเข้าสู่ระบบก่อนแจ้งปัญหา');
         return;
     }
     
@@ -1905,7 +1969,7 @@ function handleIssueSubmit(event) {
         document.getElementById('issue-reporter').value = `${state.user.name} (${displayRoleName})`;
     }
     
-    alert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
+    showCustomAlert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
 }
 
 // Login Page Issue Modal Controls
@@ -1944,7 +2008,7 @@ function handleLoginIssueSubmit(event) {
     renderAll();
     
     closeLoginIssueModal();
-    alert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
+    showCustomAlert('ส่งรายงานปัญหา/ข้อเสนอแนะสำเร็จ! ทีมงาน/ประธานจะดำเนินการตรวจสอบและตอบกลับครับ');
 }
 
 function renderIssuesList() {
@@ -2044,7 +2108,7 @@ function resolveIssue(issueId) {
     syncItemToFirebase('issues', issue.id, issue);
     syncItemToFirebase('logs', newLog.id, newLog);
     renderAll();
-    alert('บันทึกสถานะการแก้ไขปัญหาเรียบร้อย!');
+    showCustomAlert('บันทึกสถานะการแก้ไขปัญหาเรียบร้อย!');
 }
 
 function replyIssue(issueId) {
@@ -2058,7 +2122,7 @@ function replyIssue(issueId) {
     saveToLocalStorage();
     syncItemToFirebase('issues', issue.id, issue);
     renderAll();
-    alert('ส่งข้อความตอบกลับเรียบร้อย!');
+    showCustomAlert('ส่งข้อความตอบกลับเรียบร้อย!');
 }
 
 // ========== ADMIN: MEMBER MANAGEMENT SYSTEM ==========
@@ -2158,7 +2222,7 @@ function handleSaveMember(event) {
     const room = document.getElementById('manage-member-room').value;
     
     if (!id || !firstName || !lastName) {
-        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        showCustomAlert('กรุณากรอกข้อมูลให้ครบถ้วน');
         return;
     }
     
@@ -2167,7 +2231,7 @@ function handleSaveMember(event) {
     if (mode === 'add') {
         const exists = state.members.some(m => m.id === id);
         if (exists) {
-            alert('❌ รหัสประจำตัวนี้มีอยู่ในระบบแล้ว');
+            showCustomAlert('❌ รหัสประจำตัวนี้มีอยู่ในระบบแล้ว');
             return;
         }
         state.members.push({ id, firstName, lastName, room });
@@ -2201,7 +2265,7 @@ function handleSaveMember(event) {
     
     renderAdminMembersList();
     cancelEditMember();
-    alert('บันทึกข้อมูลสมาชิกเรียบร้อย!');
+    showCustomAlert('บันทึกข้อมูลสมาชิกเรียบร้อย!');
 }
 
 function deleteMember(id) {
@@ -2230,5 +2294,5 @@ function deleteMember(id) {
     syncItemToFirebase('settings', 'members', { list: state.members });
     
     renderAdminMembersList();
-    alert('ลบรายชื่อสมาชิกเรียบร้อย!');
+    showCustomAlert('ลบรายชื่อสมาชิกเรียบร้อย!');
 }
