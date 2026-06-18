@@ -979,18 +979,24 @@ function switchLoginTab(type) {
 function handleMemberLogin(event) {
     event.preventDefault();
     const name = document.getElementById('login-member-name').value.trim();
-    const memberId = document.getElementById('login-member-id').value.trim();
+    let memberId = document.getElementById('login-member-id').value.trim();
     const enteredCode = document.getElementById('login-member-code').value.trim();
     const dept = document.getElementById('login-member-dept').value;
     const codeError = document.getElementById('member-code-error');
 
     if (!name) return;
 
-    // ต้องเลือกชื่อจาก list
+    // Try to auto-resolve memberId if it wasn't selected from the suggested list
     if (!memberId) {
-        showCustomAlert('กรุณาเลือกชื่อจากรายชื่อที่แนะนำ');
-        document.getElementById('login-member-name').focus();
-        return;
+        const normalizedInput = name.replace(/\s+/g, '');
+        const found = state.members.find(m => 
+            (m.firstName + m.lastName) === normalizedInput ||
+            m.firstName === name
+        );
+        if (found) {
+            memberId = found.id;
+            document.getElementById('login-member-id').value = memberId;
+        }
     }
 
     // ตรวจสอบรหัสประจำตัว
