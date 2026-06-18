@@ -1470,13 +1470,14 @@ function renderDraftImages(listId, type) {
         item.style.overflow = 'hidden';
         
         item.innerHTML = `
-            <img src="${src}" style="width:100%; height:100%; object-fit:cover;">
+            <img src="${src}" class="draft-img-thumb" onclick="viewImage('${src}')" style="width:100%; height:100%; object-fit:cover;" title="คลิกเพื่อดูรูปขนาดเต็ม">
             <button type="button" onclick="removeDraftImage('${listId}', '${type}', ${idx})" style="
                 position:absolute; top:-2px; right:-2px;
                 background:var(--accent-danger); color:white;
                 border:none; border-radius:50%; width:18px; height:18px;
                 font-size:10px; cursor:pointer; display:flex;
                 align-items:center; justify-content:center; line-height:1;
+                z-index: 10;
             ">&times;</button>
         `;
         listContainer.appendChild(item);

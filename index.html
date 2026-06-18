@@ -320,8 +320,8 @@
                                     <i class="fa-solid fa-qrcode upload-icon"></i>
                                     <p>อัปโหลด QR Code</p>
                                     <input type="file" id="upload-qrcode" accept="image/*" style="display: none;" onchange="handleQrcodePreview(this, 'qrcode-preview')">
-                                    <div id="qrcode-preview" class="upload-preview">
-                                        <img src="" alt="QR Code Preview">
+                                    <div id="qrcode-preview" class="upload-preview" onclick="event.stopPropagation()">
+                                        <img src="" alt="QR Code Preview" onclick="viewImage(this.src)" title="คลิกเพื่อดูรูปขนาดเต็ม">
                                         <button type="button" class="remove-btn" onclick="removeQrcodeImage(event, 'upload-qrcode', 'qrcode-preview')">&times;</button>
                                     </div>
                                 </div>
@@ -635,8 +635,8 @@
                     <i class="fa-solid fa-file-invoice upload-icon" style="font-size: 1.5rem;"></i>
                     <p style="font-size: 0.85rem;">กดเพื่อแนบสลิปธนาคารที่โอนเงินแล้ว</p>
                     <input type="file" id="upload-transfer-slip" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'transfer-slip-preview')">
-                    <div id="transfer-slip-preview" class="upload-preview">
-                        <img src="" alt="Transfer Slip Preview">
+                    <div id="transfer-slip-preview" class="upload-preview" onclick="event.stopPropagation()">
+                        <img src="" alt="Transfer Slip Preview" onclick="viewImage(this.src)" title="คลิกเพื่อดูรูปขนาดเต็ม">
                         <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-transfer-slip', 'transfer-slip-preview')">&times;</button>
                     </div>
                 </div>

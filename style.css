@@ -589,6 +589,12 @@ main {
     max-height: 120px;
     object-fit: contain;
     border-radius: 0.5rem;
+    cursor: pointer;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.upload-preview img:hover {
+    opacity: 0.85;
 }
 
 .remove-btn {
@@ -1010,6 +1016,20 @@ tr:hover td {
     border-radius: 0.25rem;
     border: 1px solid var(--border-color);
     cursor: pointer;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.log-img-thumb:hover {
+    opacity: 0.85;
+}
+
+.draft-img-thumb {
+    cursor: pointer;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.draft-img-thumb:hover {
+    opacity: 0.85;
 }
 
 .log-actor {
