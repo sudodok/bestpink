@@ -1764,7 +1764,7 @@ function handleRequestSubmit(event) {
         date: new Date().toISOString(),
         type: 'upload',
         requestId: reqId,
-        desc: `ส่งคำขอเบิกเงิน: ${item} ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฝ่าย${getDeptDisplayName(department)}`,
+        desc: `ส่งคำขอเบิกเงิน: ของคุณ ${name} สำหรับ "${item}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(department)})`,
         actor: name
     };
     state.logs.push(newLog);
@@ -1933,7 +1933,7 @@ function confirmApprove() {
                 date: new Date().toISOString(),
                 type: 'approve',
                 requestId: req.id,
-                desc: `อนุมัติการเบิกเงินสำเร็จ: ${req.item} ยอด ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} คณะสีชมพู (ฝ่าย${getDeptDisplayName(req.department)})`,
+                desc: `อนุมัติการเบิกเงินสำเร็จ: ของคุณ ${req.name} สำหรับ "${req.item}" ยอด ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(req.department)})`,
                 actor: req.approvedBy
             };
             state.logs.push(newLog);
@@ -2015,7 +2015,7 @@ function confirmReject() {
             date: new Date().toISOString(),
             type: 'reject',
             requestId: req.id,
-            desc: `ปฏิเสธใบเบิกเงิน: ${req.item} ยอดเงิน ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(req.department)}) เหตุผล: ${reason}`,
+            desc: `ปฏิเสธใบเบิกเงิน: ของคุณ ${req.name} สำหรับ "${req.item}" ยอดเงิน ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(req.department)}) เหตุผล: ${reason}`,
             actor: req.approvedBy
         };
         state.logs.push(newLog);
