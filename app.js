@@ -372,7 +372,14 @@ function syncItemToFirebase(collectionName, itemId, data) {
     if (useFirebase && db) {
         db.collection(collectionName).doc(itemId).set(data)
             .then(() => console.log(`🔥 Synced document: ${collectionName}/${itemId}`))
-            .catch(err => console.error(`Firebase sync error for ${collectionName}/${itemId}:`, err));
+            .catch(err => {
+                console.error(`Firebase sync error for ${collectionName}/${itemId}:`, err);
+                let errorMsg = `การซิงก์ข้อมูลไปคลังออนไลน์ล้มเหลว (${collectionName}/${itemId}): ${err.message}`;
+                if (err.message && err.message.includes('exceeds the maximum allowed size')) {
+                    errorMsg = `⚠️ ไม่สามารถบันทึกได้เนื่องจากขนาดไฟล์/รูปภาพใหญ่เกินกำหนดของฐานข้อมูล (Firestore 1MB limit)`;
+                }
+                showCustomAlert(errorMsg, 'error');
+            });
     }
 }
 
@@ -1554,6 +1561,42 @@ function compressImage(file, maxWidth, maxHeight, quality, callback) {
     reader.readAsDataURL(file);
 }
 
+// Promisified image compression for base64 or files
+function compressImagePromise(dataUrl, maxWidth, maxHeight, quality) {
+    return new Promise((resolve) => {
+        if (!dataUrl || !dataUrl.startsWith('data:image')) {
+            resolve(dataUrl);
+            return;
+        }
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = function() {
+            resolve(dataUrl);
+        };
+        img.src = dataUrl;
+    });
+}
+
 // Draft State for reimbursement request uploads
 let requestDraftImages = {
     receipts: [],
@@ -1569,7 +1612,7 @@ function handleMultipleImagePreview(input, listId, type) {
     let loadedCount = 0;
     
     files.forEach(file => {
-        compressImage(file, 1024, 1024, 0.7, (compressedDataUrl) => {
+        compressImage(file, 800, 800, 0.5, (compressedDataUrl) => {
             if (type === 'receipt') {
                 requestDraftImages.receipts.push(compressedDataUrl);
             } else if (type === 'product') {
@@ -1631,7 +1674,7 @@ function handleQrcodePreview(input, previewId) {
     const previewContainer = document.getElementById(previewId);
     
     if (file) {
-        compressImage(file, 800, 800, 0.7, (compressedDataUrl) => {
+        compressImage(file, 500, 500, 0.5, (compressedDataUrl) => {
             requestDraftImages.qrcode = compressedDataUrl;
             const img = previewContainer.querySelector('img');
             img.src = compressedDataUrl;
@@ -1655,7 +1698,7 @@ function handleImagePreview(input, previewId) {
     const previewContainer = document.getElementById(previewId);
     
     if (file) {
-        compressImage(file, 1024, 1024, 0.7, (compressedDataUrl) => {
+        compressImage(file, 800, 800, 0.5, (compressedDataUrl) => {
             const img = previewContainer.querySelector('img');
             img.src = compressedDataUrl;
             previewContainer.style.display = 'block';
@@ -1847,9 +1890,7 @@ function confirmApprove() {
     const req = state.requests.find(r => r.id === reqId);
     if (!req) return;
     
-    // Get attached transfer slip or fallback to simulated slip
     const transferSlipSrc = document.getElementById('transfer-slip-preview').querySelector('img').src;
-    const finalTransferSlip = transferSlipSrc || MOCK_SLIP_SVG;
     
     // Hide buttons, show progress bar
     document.getElementById('approve-modal-buttons').style.display = 'none';
@@ -1861,30 +1902,59 @@ function confirmApprove() {
     setTimeout(() => {
         document.getElementById('transfer-progress-fill').style.width = '100%';
     }, 50);
-    // Save state changes after animation completes (1.3 seconds)
-    setTimeout(() => {
-        req.status = 'approved';
-        req.approvedBy = state.user.name;
-        req.transferSlip = finalTransferSlip;
-        req.date = new Date().toISOString(); // Update to approval timestamp for transaction log
-        
-        const newLog = {
-            id: 'log-' + Date.now(),
-            date: new Date().toISOString(),
-            type: 'approve',
-            requestId: req.id,
-            desc: `อนุมัติการเบิกเงินสำเร็จ: ${req.item} ยอด ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} คณะสีชมพู (ฝ่าย${getDeptDisplayName(req.department)})`,
-            actor: req.approvedBy
-        };
-        state.logs.push(newLog);
-        
-        saveToLocalStorage();
-        syncItemToFirebase('requests', req.id, req);
-        syncItemToFirebase('logs', newLog.id, newLog);
-        renderAll();
-        closeApproveModal();
-        showCustomAlert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
-    }, 1300);
+    
+    // Compress all request images on the fly before saving to keep document size minimal
+    const slipPromise = compressImagePromise(transferSlipSrc, 800, 800, 0.5);
+    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.5);
+    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
+    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
+    
+    Promise.all([
+        slipPromise,
+        qrcodePromise,
+        Promise.all(receiptPromises),
+        Promise.all(productPromises)
+    ]).then(([compressedSlip, compressedQr, compressedReceipts, compressedProducts]) => {
+        setTimeout(() => {
+            req.status = 'approved';
+            req.approvedBy = state.user.name;
+            req.transferSlip = compressedSlip || MOCK_SLIP_SVG;
+            req.qrcode = compressedQr;
+            req.receipts = compressedReceipts;
+            req.productPhotos = compressedProducts;
+            
+            // Clean legacy single-image fields to keep document size extra small
+            delete req.receipt;
+            delete req.productPhoto;
+            
+            req.date = new Date().toISOString();
+            
+            const newLog = {
+                id: 'log-' + Date.now(),
+                date: new Date().toISOString(),
+                type: 'approve',
+                requestId: req.id,
+                desc: `อนุมัติการเบิกเงินสำเร็จ: ${req.item} ยอด ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} คณะสีชมพู (ฝ่าย${getDeptDisplayName(req.department)})`,
+                actor: req.approvedBy
+            };
+            state.logs.push(newLog);
+            
+            saveToLocalStorage();
+            syncItemToFirebase('requests', req.id, req);
+            syncItemToFirebase('logs', newLog.id, newLog);
+            renderAll();
+            closeApproveModal();
+            showCustomAlert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
+        }, 1200);
+    }).catch(err => {
+        console.error('Approve compression error:', err);
+        // Restore buttons and hide progress
+        document.getElementById('approve-modal-buttons').style.display = 'flex';
+        document.getElementById('president-slip-upload-group').style.display = 'block';
+        document.getElementById('transfer-progress-bar').style.display = 'none';
+        document.getElementById('transfer-status-text').style.display = 'none';
+        showCustomAlert('เกิดข้อผิดพลาดขณะบีบอัดรูปภาพ: ' + err.message, 'error');
+    });
 }
 
 // Open Rejection Dialog Modal
@@ -1911,26 +1981,66 @@ function confirmReject() {
     const req = state.requests.find(r => r.id === reqId);
     if (!req) return;
     
-    req.status = 'rejected';
-    req.rejectReason = reason;
-    req.approvedBy = state.user.name;
+    // Disable buttons and show loading state
+    const rejectBtn = document.querySelector('#reject-modal .btn-danger');
+    const cancelBtn = document.querySelector('#reject-modal .btn');
+    const originalText = rejectBtn.innerHTML;
     
-    const newLog = {
-        id: 'log-' + Date.now(),
-        date: new Date().toISOString(),
-        type: 'reject',
-        requestId: req.id,
-        desc: `ปฏิเสธใบเบิกเงิน: ${req.item} ยอดเงิน ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(req.department)}) เหตุผล: ${reason}`,
-        actor: req.approvedBy
-    };
-    state.logs.push(newLog);
+    rejectBtn.disabled = true;
+    cancelBtn.disabled = true;
+    rejectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
     
-    saveToLocalStorage();
-    syncItemToFirebase('requests', req.id, req);
-    syncItemToFirebase('logs', newLog.id, newLog);
-    renderAll();
-    closeRejectModal();
-    showCustomAlert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
+    // Compress all request images on the fly before saving to keep document size minimal
+    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.5);
+    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
+    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
+    
+    Promise.all([
+        qrcodePromise,
+        Promise.all(receiptPromises),
+        Promise.all(productPromises)
+    ]).then(([compressedQr, compressedReceipts, compressedProducts]) => {
+        req.status = 'rejected';
+        req.rejectReason = reason;
+        req.approvedBy = state.user.name;
+        req.qrcode = compressedQr;
+        req.receipts = compressedReceipts;
+        req.productPhotos = compressedProducts;
+        
+        // Clean legacy single-image fields to keep document size extra small
+        delete req.receipt;
+        delete req.productPhoto;
+        
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: 'reject',
+            requestId: req.id,
+            desc: `ปฏิเสธใบเบิกเงิน: ${req.item} ยอดเงิน ฿${req.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (ฝ่าย${getDeptDisplayName(req.department)}) เหตุผล: ${reason}`,
+            actor: req.approvedBy
+        };
+        state.logs.push(newLog);
+        
+        saveToLocalStorage();
+        syncItemToFirebase('requests', req.id, req);
+        syncItemToFirebase('logs', newLog.id, newLog);
+        renderAll();
+        
+        // Restore buttons
+        rejectBtn.disabled = false;
+        cancelBtn.disabled = false;
+        rejectBtn.innerHTML = originalText;
+        
+        closeRejectModal();
+        showCustomAlert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
+    }).catch(err => {
+        console.error('Reject compression error:', err);
+        // Restore buttons
+        rejectBtn.disabled = false;
+        cancelBtn.disabled = false;
+        rejectBtn.innerHTML = originalText;
+        showCustomAlert('เกิดข้อผิดพลาดขณะบันทึกการปฏิเสธ: ' + err.message, 'error');
+    });
 }
 
 // Render Member's Personal History
