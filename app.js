@@ -1465,9 +1465,19 @@ function renderLogsList() {
         
         // Render logs image files if it corresponds to an approved request with receipts
         let imageRowMarkup = '';
+        let displayDesc = log.desc;
         if (log.requestId) {
             const req = state.requests.find(r => r.id === log.requestId);
             if (req) {
+                if (req.name && !displayDesc.includes("ของคุณ") && !displayDesc.includes(req.name)) {
+                    if (displayDesc.startsWith("อนุมัติการเบิกเงินสำเร็จ: ")) {
+                        displayDesc = displayDesc.replace("อนุมัติการเบิกเงินสำเร็จ: ", `อนุมัติการเบิกเงินสำเร็จ: ของคุณ ${req.name} `);
+                    } else if (displayDesc.startsWith("ปฏิเสธใบเบิกเงิน: ")) {
+                        displayDesc = displayDesc.replace("ปฏิเสธใบเบิกเงิน: ", `ปฏิเสธใบเบิกเงิน: ของคุณ ${req.name} `);
+                    } else if (displayDesc.startsWith("ส่งคำขอเบิกเงิน: ")) {
+                        displayDesc = displayDesc.replace("ส่งคำขอเบิกเงิน: ", `ส่งคำขอเบิกเงิน: ของคุณ ${req.name} `);
+                    }
+                }
                 const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
                 const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
                 
@@ -1506,7 +1516,7 @@ function renderLogsList() {
         
         item.innerHTML = `
             <div class="log-time"><i class="fa-solid fa-clock"></i> ${formatDateTime(log.date)}</div>
-            <div class="log-desc">${log.desc}</div>
+            <div class="log-desc">${displayDesc}</div>
             ${imageRowMarkup}
             <div class="log-actor">
                 <span>บันทึกโดย: ${log.actor}</span>
