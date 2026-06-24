@@ -469,15 +469,14 @@ function sanitizeState() {
 
 function loadFromDatabase(callback) {
     if (useFirebase && db) {
-        console.log("Attempting to connect to Firebase Firestore (collection-based schema)...");
+        console.log("Attempting to connect to Firebase Firestore (collection-based schema)...\n");
         let hasLoaded = false;
         
-        // Timeout 3.5 seconds
         const fbTimeout = setTimeout(() => {
             if (!hasLoaded) {
-                console.warn("⚠️ Firebase connection timed out. Falling back to local database...");
-                useFirebase = false; 
-                loadLocalData(callback);
+                console.warn("⚠️ Firebase connection timed out. Using local data...");
+                useFirebase = false;
+                callback();
             }
         }, 3500);
 
@@ -496,14 +495,11 @@ function loadFromDatabase(callback) {
 
             const currentUser = state.user;
             
-            // Check if Firebase is completely brand-new / empty
             if (requestsSnap.empty && incomesSnap.empty && logsSnap.empty && issuesSnap.empty) {
                 console.log("Firebase contains no collection data. Seeding with local state...");
-                loadLocalData(() => {
-                    seedFirebaseFromLocal();
-                    setupFirebaseRealtimeListener();
-                    callback();
-                });
+                seedFirebaseFromLocal();
+                setupFirebaseRealtimeListener();
+                callback();
             } else {
                 state.requests = [];
                 requestsSnap.forEach(doc => state.requests.push(doc.data()));
@@ -539,11 +535,11 @@ function loadFromDatabase(callback) {
             if (hasLoaded) return;
             hasLoaded = true;
             clearTimeout(fbTimeout);
-            console.error("Error loading from Firebase Collections, falling back to local database:", err);
-            loadLocalData(callback);
+            console.error("Error loading from Firebase Collections, using local data:", err);
+            callback();
         });
     } else {
-        loadLocalData(callback);
+        callback();
     }
 }
 
@@ -866,8 +862,11 @@ window.addEventListener('DOMContentLoaded', () => {
         if (idInput) idInput.value = '';
     }, 150);
 
-    loadFromDatabase(() => {
-        checkSession();
+    // Load local database data first before resolving session & fetching firebase
+    loadLocalData(() => {
+        loadFromDatabase(() => {
+            checkSession();
+        });
     });
 });
 
