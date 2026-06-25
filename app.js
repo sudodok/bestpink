@@ -478,7 +478,7 @@ function loadFromDatabase(callback) {
                 useFirebase = false;
                 callback();
             }
-        }, 3500);
+        }, 8000);
 
         // Fetch all collections
         Promise.all([
@@ -876,6 +876,11 @@ function checkSession() {
     const mainContent = document.getElementById('main-content');
     const userStatusArea = document.getElementById('user-status-area');
     
+    const offlineBanner = document.getElementById('offline-banner');
+    if (offlineBanner) {
+        offlineBanner.style.display = useFirebase ? 'none' : 'block';
+    }
+    
     if (state.user) {
         // Show dashboard, hide login
         loginSection.style.display = 'none';
@@ -1162,6 +1167,20 @@ function renderAll() {
     renderLogsList();
     renderMemberHistory();
     renderIssuesList();
+    
+    // Update offline banner state dynamically
+    const offlineBanner = document.getElementById('offline-banner');
+    if (offlineBanner) {
+        offlineBanner.style.display = useFirebase ? 'none' : 'block';
+    }
+    
+    // Notify of new pending requests in title bar for presidents
+    const pendingCount = state.requests.filter(req => req.status === 'pending').length;
+    if (state.user && state.user.role === 'president' && pendingCount > 0) {
+        document.title = `🔔 (${pendingCount}) Pink Team Finance`;
+    } else {
+        document.title = `Pink Team Finance - ระบบจัดการเงินคณะสีชมพู`;
+    }
 }
 
 // Switch View Tabs
