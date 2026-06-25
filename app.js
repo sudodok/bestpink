@@ -471,14 +471,16 @@ function loadFromDatabase(callback) {
     if (useFirebase && db) {
         console.log("Attempting to connect to Firebase Firestore (collection-based schema)...\n");
         let hasLoaded = false;
+        let firstCallbackDone = false;
         
         const fbTimeout = setTimeout(() => {
             if (!hasLoaded) {
-                console.warn("⚠️ Firebase connection timed out. Using local data...");
+                console.warn("⚠️ Firebase connection timed out. Proceeding with local data...");
                 useFirebase = false;
+                firstCallbackDone = true;
                 callback();
             }
-        }, 8000);
+        }, 3000); // 3 seconds timeout to start app quickly
 
         // Fetch all collections
         Promise.all([
@@ -493,25 +495,79 @@ function loadFromDatabase(callback) {
             hasLoaded = true;
             clearTimeout(fbTimeout);
 
+            useFirebase = true;
             const currentUser = state.user;
             
             if (requestsSnap.empty && incomesSnap.empty && logsSnap.empty && issuesSnap.empty) {
                 console.log("Firebase contains no collection data. Seeding with local state...");
                 seedFirebaseFromLocal();
                 setupFirebaseRealtimeListener();
-                callback();
+                if (!firstCallbackDone) {
+                    firstCallbackDone = true;
+                    callback();
+                } else {
+                    renderAll();
+                }
             } else {
+                // Merge requests
+                const firestoreReqIds = new Set();
+                requestsSnap.forEach(doc => firestoreReqIds.add(doc.id));
+                const localRequests = [...state.requests];
+                
                 state.requests = [];
                 requestsSnap.forEach(doc => state.requests.push(doc.data()));
+                
+                localRequests.forEach(req => {
+                    if (!firestoreReqIds.has(req.id)) {
+                        state.requests.push(req);
+                        syncItemToFirebase('requests', req.id, req);
+                    }
+                });
+
+                // Merge incomes
+                const firestoreIncIds = new Set();
+                incomesSnap.forEach(doc => firestoreIncIds.add(doc.id));
+                const localIncomes = [...state.incomes];
                 
                 state.incomes = [];
                 incomesSnap.forEach(doc => state.incomes.push(doc.data()));
                 
+                localIncomes.forEach(inc => {
+                    if (!firestoreIncIds.has(inc.id)) {
+                        state.incomes.push(inc);
+                        syncItemToFirebase('incomes', inc.id, inc);
+                    }
+                });
+
+                // Merge logs
+                const firestoreLogIds = new Set();
+                logsSnap.forEach(doc => firestoreLogIds.add(doc.id));
+                const localLogs = [...state.logs];
+                
                 state.logs = [];
                 logsSnap.forEach(doc => state.logs.push(doc.data()));
                 
+                localLogs.forEach(log => {
+                    if (!firestoreLogIds.has(log.id)) {
+                        state.logs.push(log);
+                        syncItemToFirebase('logs', log.id, log);
+                    }
+                });
+
+                // Merge issues
+                const firestoreIssueIds = new Set();
+                issuesSnap.forEach(doc => firestoreIssueIds.add(doc.id));
+                const localIssues = [...state.issues];
+                
                 state.issues = [];
                 issuesSnap.forEach(doc => state.issues.push(doc.data()));
+                
+                localIssues.forEach(issue => {
+                    if (!firestoreIssueIds.has(issue.id)) {
+                        state.issues.push(issue);
+                        syncItemToFirebase('issues', issue.id, issue);
+                    }
+                });
                 
                 if (allocationsSnap.exists) {
                     state.allocations = allocationsSnap.data();
@@ -529,14 +585,26 @@ function loadFromDatabase(callback) {
                 console.log("State loaded successfully from Firebase Firestore Collections.");
                 saveToLocalStorage();
                 setupFirebaseRealtimeListener();
-                callback();
+                
+                if (!firstCallbackDone) {
+                    firstCallbackDone = true;
+                    callback();
+                } else {
+                    renderAll();
+                }
             }
         }).catch(err => {
             if (hasLoaded) return;
             hasLoaded = true;
             clearTimeout(fbTimeout);
             console.error("Error loading from Firebase Collections, using local data:", err);
-            callback();
+            useFirebase = false;
+            if (!firstCallbackDone) {
+                firstCallbackDone = true;
+                callback();
+            } else {
+                renderAll();
+            }
         });
     } else {
         callback();
@@ -864,7 +932,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Load local database data first before resolving session & fetching firebase
     loadLocalData(() => {
+        // Render UI immediately using local data
+        checkSession();
+        
+        // Then start loading Firebase in the background
         loadFromDatabase(() => {
+            // Once Firebase finishes loading, re-run checkSession to update everything
             checkSession();
         });
     });
