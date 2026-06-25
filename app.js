@@ -367,20 +367,39 @@ function saveToLocalStorage() {
     }
 }
 
-// Helper: Sync single item to Firestore
-function syncItemToFirebase(collectionName, itemId, data) {
+// Helper: Sync single item to Firestore with automatic retry
+function syncItemToFirebase(collectionName, itemId, data, retryCount = 0) {
     if (useFirebase && db) {
-        db.collection(collectionName).doc(itemId).set(data)
-            .then(() => console.log(`🔥 Synced document: ${collectionName}/${itemId}`))
+        return db.collection(collectionName).doc(itemId).set(data)
+            .then(() => {
+                console.log(`🔥 Synced document: ${collectionName}/${itemId}`);
+            })
             .catch(err => {
-                console.error(`Firebase sync error for ${collectionName}/${itemId}:`, err);
-                let errorMsg = `การซิงก์ข้อมูลไปคลังออนไลน์ล้มเหลว (${collectionName}/${itemId}): ${err.message}`;
+                console.error(`Firebase sync error for ${collectionName}/${itemId} (Attempt ${retryCount + 1}/3):`, err);
+                
+                // Do not retry if the error is document size exceeds limit
                 if (err.message && err.message.includes('exceeds the maximum allowed size')) {
-                    errorMsg = `⚠️ ไม่สามารถบันทึกได้เนื่องจากขนาดไฟล์/รูปภาพใหญ่เกินกำหนดของฐานข้อมูล (Firestore 1MB limit)`;
+                    const errorMsg = `⚠️ ไม่สามารถบันทึกได้เนื่องจากขนาดไฟล์/รูปภาพใหญ่เกินกำหนดของฐานข้อมูล (Firestore 1MB limit)`;
+                    showCustomAlert(errorMsg, 'error');
+                    return Promise.reject(err);
                 }
-                showCustomAlert(errorMsg, 'error');
+                
+                if (retryCount < 2) {
+                    return new Promise((resolve, reject) => {
+                        setTimeout(() => {
+                            syncItemToFirebase(collectionName, itemId, data, retryCount + 1)
+                                .then(resolve)
+                                .catch(reject);
+                        }, 2000);
+                    });
+                } else {
+                    const errorMsg = `การซิงก์ข้อมูลไปคลังออนไลน์ล้มเหลว (${collectionName}/${itemId}): ${err.message}`;
+                    showCustomAlert(errorMsg, 'error');
+                    return Promise.reject(err);
+                }
             });
     }
+    return Promise.resolve();
 }
 
 // Helper: Seed Firebase from local cache
@@ -629,10 +648,23 @@ function setupFirebaseRealtimeListener() {
             const docData = change.doc.data();
             const idx = state.requests.findIndex(r => r.id === docData.id);
             if (change.type === 'added' || change.type === 'modified') {
+                const oldDoc = idx > -1 ? { ...state.requests[idx] } : null;
                 if (idx > -1) {
                     state.requests[idx] = docData;
                 } else {
                     state.requests.push(docData);
+                }
+                
+                // Show real-time approval/rejection alert for the logged-in member
+                if (change.type === 'modified' && oldDoc && state.user) {
+                    if (docData.name === state.user.name) {
+                        if (oldDoc.status === 'pending' && docData.status === 'approved') {
+                            showCustomAlert(`🎉 ใบเบิกเงินสำหรับ "${docData.item}" ยอดเงิน ฿${(docData.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ได้รับการอนุมัติและโอนเงินเรียบร้อยแล้ว!`, 'success');
+                        } else if (oldDoc.status === 'pending' && docData.status === 'rejected') {
+                            const reasonText = docData.rejectReason ? ` เหตุผล: ${docData.rejectReason}` : '';
+                            showCustomAlert(`⚠️ ใบเบิกเงินสำหรับ "${docData.item}" ยอดเงิน ฿${(docData.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ถูกปฏิเสธ.${reasonText}`, 'error');
+                        }
+                    }
                 }
             } else if (change.type === 'removed') {
                 if (idx > -1) {
@@ -1713,7 +1745,7 @@ function handleMultipleImagePreview(input, listId, type) {
     let loadedCount = 0;
     
     files.forEach(file => {
-        compressImage(file, 800, 800, 0.5, (compressedDataUrl) => {
+        compressImage(file, 800, 800, 0.3, (compressedDataUrl) => {
             if (type === 'receipt') {
                 requestDraftImages.receipts.push(compressedDataUrl);
             } else if (type === 'product') {
@@ -1775,7 +1807,7 @@ function handleQrcodePreview(input, previewId) {
     const previewContainer = document.getElementById(previewId);
     
     if (file) {
-        compressImage(file, 500, 500, 0.5, (compressedDataUrl) => {
+        compressImage(file, 500, 500, 0.3, (compressedDataUrl) => {
             requestDraftImages.qrcode = compressedDataUrl;
             const img = previewContainer.querySelector('img');
             img.src = compressedDataUrl;
@@ -1799,7 +1831,7 @@ function handleImagePreview(input, previewId) {
     const previewContainer = document.getElementById(previewId);
     
     if (file) {
-        compressImage(file, 800, 800, 0.5, (compressedDataUrl) => {
+        compressImage(file, 800, 800, 0.3, (compressedDataUrl) => {
             const img = previewContainer.querySelector('img');
             img.src = compressedDataUrl;
             previewContainer.style.display = 'block';
@@ -1827,14 +1859,41 @@ function handleRequestSubmit(event) {
     const name = state.user.name;
     const department = state.user.department;
     
-    const item = document.getElementById('req-item').value;
+    const item = document.getElementById('req-item').value.trim();
     const amount = parseFloat(document.getElementById('req-amount').value);
     const category = 'สปอร์ตเดย์'; // Default fallback
     const memo = document.getElementById('req-memo').value.trim();
     
-    const finalReceipts = requestDraftImages.receipts.length > 0 ? [...requestDraftImages.receipts] : [MOCK_RECEIPT_SVG];
-    const finalProducts = requestDraftImages.productPhotos.length > 0 ? [...requestDraftImages.productPhotos] : [MOCK_PRODUCT_SVG];
-    const finalQrcode = requestDraftImages.qrcode || MOCK_QRCODE_SVG;
+    // Form Validation Checks
+    if (!amount || amount <= 0) {
+        showCustomAlert('❌ กรุณาระบุจำนวนเงินที่ถูกต้องและมากกว่า 0 บาท', 'error');
+        return;
+    }
+    
+    if (requestDraftImages.receipts.length === 0) {
+        showCustomAlert('❌ กรุณาแนบรูปภาพใบเสร็จรับเงินอย่างน้อย 1 รูป', 'error');
+        return;
+    }
+    
+    if (requestDraftImages.productPhotos.length === 0) {
+        showCustomAlert('❌ กรุณาแนบรูปภาพสินค้าอย่างน้อย 1 รูป', 'error');
+        return;
+    }
+    
+    if (!requestDraftImages.qrcode) {
+        showCustomAlert('❌ กรุณาอัปโหลดรูปภาพ QR Code รับเงิน (PromptPay QR)', 'error');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submit-request-btn');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังส่งใบเบิก...';
+    
+    const finalReceipts = [...requestDraftImages.receipts];
+    const finalProducts = [...requestDraftImages.productPhotos];
+    const finalQrcode = requestDraftImages.qrcode;
     
     const reqId = 'req-' + Date.now();
     const newRequest = {
@@ -1872,26 +1931,35 @@ function handleRequestSubmit(event) {
     state.logs.push(newLog);
     
     saveToLocalStorage();
-    syncItemToFirebase('requests', newRequest.id, newRequest);
-    syncItemToFirebase('logs', newLog.id, newLog);
-    renderAll();
     
-    // Reset Form and Draft State
-    document.getElementById('reimbursement-form').reset();
-    requestDraftImages = {
-        receipts: [],
-        productPhotos: [],
-        qrcode: ""
-    };
-    document.getElementById('receipt-preview-list').innerHTML = '';
-    document.getElementById('product-preview-list').innerHTML = '';
-    document.getElementById('qrcode-preview').style.display = 'none';
-    document.getElementById('qrcode-preview').querySelector('img').src = '';
+    const p1 = syncItemToFirebase('requests', newRequest.id, newRequest);
+    const p2 = syncItemToFirebase('logs', newLog.id, newLog);
     
-    document.getElementById('form-budget-warning').style.display = 'none';
-    
-    showCustomAlert('ส่งใบเบิกเข้าคลังสวัสดิการสำเร็จเรียบร้อย! ประธานสวัสดิการสีชมพูจะสแกนโอนเงินตามลำดับคิว');
-    switchTab('request-view');
+    Promise.all([p1, p2]).then(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        
+        // Reset Form and Draft State
+        document.getElementById('reimbursement-form').reset();
+        requestDraftImages = {
+            receipts: [],
+            productPhotos: [],
+            qrcode: ""
+        };
+        document.getElementById('receipt-preview-list').innerHTML = '';
+        document.getElementById('product-preview-list').innerHTML = '';
+        document.getElementById('qrcode-preview').style.display = 'none';
+        document.getElementById('qrcode-preview').querySelector('img').src = '';
+        document.getElementById('form-budget-warning').style.display = 'none';
+        
+        renderAll();
+        showCustomAlert('ส่งใบเบิกเข้าคลังสวัสดิการสำเร็จเรียบร้อย! ประธานสวัสดิการสีชมพูจะสแกนโอนเงินตามลำดับคิว', 'success');
+        switchTab('request-view');
+    }).catch(err => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        console.error("Submission sync failure:", err);
+    });
 }
 
 // Handle Add Income Submit
@@ -2005,10 +2073,10 @@ function confirmApprove() {
     }, 50);
     
     // Compress all request images on the fly before saving to keep document size minimal
-    const slipPromise = compressImagePromise(transferSlipSrc, 800, 800, 0.5);
-    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.5);
-    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
-    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
+    const slipPromise = compressImagePromise(transferSlipSrc, 800, 800, 0.3);
+    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.3);
+    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
+    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
     
     Promise.all([
         slipPromise,
@@ -2092,9 +2160,9 @@ function confirmReject() {
     rejectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
     
     // Compress all request images on the fly before saving to keep document size minimal
-    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.5);
-    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
-    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.5));
+    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.3);
+    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
+    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
     
     Promise.all([
         qrcodePromise,

@@ -1,9 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --bg-primary: #0f1016;
-    --bg-secondary: #1a1c29;
-    --bg-tertiary: #2a2e45;
+    --bg-primary: #1b1e2e;
+    --bg-secondary: #24293e;
+    --bg-tertiary: #303752;
     
     --accent-primary: #ec4899;
     --accent-primary-hover: #db2777;
@@ -15,13 +15,13 @@
     --accent-danger-hover: #dc2626;
     --accent-warning: #f59e0b;
     
-    --text-primary: #f8fafc;
+    --text-primary: #e8edf5;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     
     --border-color: rgba(236, 72, 153, 0.12);
     --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
-    --glass-bg: rgba(26, 28, 41, 0.85);
+    --glass-bg: rgba(36, 41, 62, 0.85);
     --glass-border: rgba(236, 72, 153, 0.08);
     
     --font-sans: 'Outfit', 'Sarabun', sans-serif;
@@ -337,6 +337,7 @@ main {
     align-items: center;
     gap: 0.5rem;
     flex-shrink: 0;
+    min-height: 44px;
 }
 
 .tab-btn:hover {
@@ -634,6 +635,7 @@ main {
     cursor: pointer;
     transition: all 0.2s ease;
     width: 100%;
+    min-height: 44px;
 }
 
 .btn-primary {
