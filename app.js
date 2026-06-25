@@ -1268,7 +1268,7 @@ function checkFormBudgetWarning() {
     const amountVal = parseFloat(document.getElementById('req-amount').value);
     const warningDiv = document.getElementById('form-budget-warning');
     
-    if (!amountVal || state.user.role !== 'purchaser') {
+    if (!amountVal || !state.user || state.user.role !== 'purchaser') {
         warningDiv.style.display = 'none';
         return;
     }
@@ -1381,7 +1381,7 @@ function renderPendingQueue() {
             ? `<span class="badge badge-rejected" style="margin-left:0.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> เกินงบคลัง</span>`
             : '';
         
-        const userActionButtons = state.user.role === 'president'
+        const userActionButtons = (state.user && state.user.role === 'president')
             ? `<div class="card-footer-actions">
                     <button class="btn btn-success" style="font-size: 0.8rem; padding: 0.5rem;" onclick="openApproveModal('${req.id}')">
                         <i class="fa-solid fa-check"></i> โอนเงิน & อนุมัติ
