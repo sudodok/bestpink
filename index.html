@@ -11,6 +11,21 @@
 </head>
 <body>
 
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-logo">
+                <i class="fa-solid fa-piggy-bank"></i>
+            </div>
+            <h1 class="splash-title">MoneyPink</h1>
+            <p class="splash-subtitle">ระบบบริหารจัดการการเงินกองกลางสีชมพู</p>
+            <div class="splash-loader-bar">
+                <div class="splash-loader-fill" id="splash-loader-fill"></div>
+            </div>
+            <div class="splash-status" id="splash-status">กำลังโหลดข้อมูลระบบ...</div>
+        </div>
+    </div>
+
     <header>
         <div class="header-container">
             <div class="logo">
@@ -181,9 +196,10 @@
             </div>
         </section>
 
-        <!-- Navigation Tabs -->
-        <div class="tab-navigation">
-            <button id="tab-dashboard" class="tab-btn active" onclick="switchTab('dashboard-view')">
+        <!-- Navigation Tabs Wrapper with scroll indicators -->
+        <div class="tab-navigation-wrapper">
+            <div class="tab-navigation">
+                <button id="tab-dashboard" class="tab-btn active" onclick="switchTab('dashboard-view')">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span class="tab-text-desktop">แดชบอร์ดแบ่งฝ่าย</span>
                 <span class="tab-text-mobile">แดชบอร์ด</span>
@@ -209,6 +225,11 @@
                 <span class="tab-text-desktop">จัดการรายชื่อสมาชิก</span>
                 <span class="tab-text-mobile">จัดการสมาชิก</span>
             </button>
+            <button id="tab-accounts" class="tab-btn" onclick="switchTab('accounts-view')" style="display: none;">
+                <i class="fa-solid fa-vault"></i>
+                <span class="tab-text-desktop">บัญชีรายรับ-รายจ่าย</span>
+                <span class="tab-text-mobile">ระบบบัญชี</span>
+            </button>
             <button id="tab-member-history" class="tab-btn" onclick="switchTab('member-history-view')" style="display: none;">
                 <i class="fa-solid fa-receipt"></i>
                 <span class="tab-text-desktop">ประวัติการเบิกของฉัน</span>
@@ -220,6 +241,9 @@
                 <span class="tab-text-mobile">แจ้งปัญหา</span>
                 (<span id="issues-count">0</span>)
             </button>
+            </div>
+            <div class="tab-scroll-indicator right"><i class="fa-solid fa-chevron-right"></i></div>
+            <div class="tab-scroll-indicator left"><i class="fa-solid fa-chevron-left"></i></div>
         </div>
 
         <!-- TAB 1: Dashboard View -->
@@ -236,7 +260,7 @@
                 <!-- Recent Transactions (Incomes & Approved expenses) -->
                 <div class="panel-card">
                     <h2 class="panel-title"><i class="fa-solid fa-list-ul"></i> รายการเดินบัญชีล่าสุด</h2>
-                    <div class="table-container">
+                    <div class="table-container table-scroll-y">
                         <table>
                             <thead>
                                 <tr>
@@ -359,7 +383,29 @@
             <div class="panel-card">
                 <h2 class="panel-title"><i class="fa-solid fa-clock"></i> รายการใบเบิกสวัสดิการที่รอการตรวจสอบ</h2>
                 <div id="pending-list" class="requests-grid">
-                    <!-- Cards populated dynamically -->
+                    <!-- Skeleton Loader (Replaced on load) -->
+                    <div class="skeleton-request-card">
+                        <div class="skeleton-card-header">
+                            <div class="skeleton-badge skeleton"></div>
+                            <div class="skeleton-badge skeleton"></div>
+                        </div>
+                        <div class="skeleton-card-body">
+                            <div class="skeleton-text title skeleton" style="margin-bottom: 0.5rem;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="margin-bottom: 0.35rem; width: 80%;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-request-card">
+                        <div class="skeleton-card-header">
+                            <div class="skeleton-badge skeleton"></div>
+                            <div class="skeleton-badge skeleton"></div>
+                        </div>
+                        <div class="skeleton-card-body">
+                            <div class="skeleton-text title skeleton" style="margin-bottom: 0.5rem;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="margin-bottom: 0.35rem; width: 80%;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="width: 50%;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -371,7 +417,21 @@
                 <div class="panel-card">
                     <h2 class="panel-title"><i class="fa-solid fa-shield-halved"></i> บันทึกเหตุการณ์และประวัติสลิป (Audit Logs)</h2>
                     <div id="system-logs" class="log-list">
-                        <!-- Logs populated dynamically -->
+                        <!-- Skeleton Loader (Replaced on load) -->
+                        <div style="display:flex; flex-direction:column; gap:1.25rem; padding:0.5rem 0; width:100%;">
+                            <div style="display:flex; justify-content:space-between; gap:1.5rem;">
+                                <div class="skeleton-text skeleton" style="width:70%; height:0.9rem; margin:0;"></div>
+                                <div class="skeleton-text skeleton" style="width:20%; height:0.8rem; margin:0;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; gap:1.5rem;">
+                                <div class="skeleton-text skeleton" style="width:60%; height:0.9rem; margin:0;"></div>
+                                <div class="skeleton-text skeleton" style="width:20%; height:0.8rem; margin:0;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; gap:1.5rem;">
+                                <div class="skeleton-text skeleton" style="width:80%; height:0.9rem; margin:0;"></div>
+                                <div class="skeleton-text skeleton" style="width:20%; height:0.8rem; margin:0;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -470,8 +530,8 @@
                 </div>
 
                 <!-- Members list table inside admin panel -->
-                <div style="max-height: 400px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <div class="members-scroll-container">
+                    <table class="members-desktop-table" style="border-collapse: collapse; font-size: 0.85rem;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
                                 <th style="padding: 0.5rem;">รหัส</th>
@@ -481,9 +541,183 @@
                             </tr>
                         </thead>
                         <tbody id="admin-members-list">
-                            <!-- Populated dynamically -->
+                            <!-- Skeleton Loader (Replaced on load) -->
+                            <tr>
+                                <td colspan="4" style="padding: 1rem 0.5rem;">
+                                    <div style="display:flex; flex-direction:column; gap:1rem; padding:0.5rem 0; width:100%;">
+                                        <div class="skeleton-text skeleton" style="width:100%; height:0.9rem; margin:0;"></div>
+                                        <div class="skeleton-text skeleton" style="width:100%; height:0.9rem; margin:0;"></div>
+                                        <div class="skeleton-text skeleton" style="width:100%; height:0.9rem; margin:0;"></div>
+                                    </div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
+
+                    <!-- Mobile responsive list of member cards -->
+                    <div id="admin-members-mobile-list" class="members-mobile-list">
+                        <div style="display:flex; flex-direction:column; gap:0.5rem; width:100%;">
+                            <div class="member-card-item skeleton" style="height: 62px;"></div>
+                            <div class="member-card-item skeleton" style="height: 62px;"></div>
+                            <div class="member-card-item skeleton" style="height: 62px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Accounts Ledger (President/Admin Only) -->
+        <div id="accounts-view" class="tab-content">
+            <!-- Accounts Summary Metrics -->
+            <section class="metrics-grid" style="margin-bottom: 2rem;">
+                <div class="metric-card" style="border-left: 4px solid var(--accent-success); margin-bottom: 0;">
+                    <div class="metric-info">
+                        <h3>💵 ยอดเงินสดคงเหลือ</h3>
+                        <div id="acc-metric-cash-balance" class="metric-val" style="font-size: 1.5rem; color: var(--accent-success);">฿0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            รับ: <span id="acc-metric-cash-in" style="color: var(--accent-success);">฿0.00</span> | 
+                            จ่าย: <span id="acc-metric-cash-out" style="color: var(--accent-danger);">฿0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-card" style="border-left: 4px solid #0284c7; margin-bottom: 0;">
+                    <div class="metric-info">
+                        <h3>🏦 ยอดเงินในบัญชีคงเหลือ</h3>
+                        <div id="acc-metric-bank-balance" class="metric-val" style="font-size: 1.5rem; color: #0284c7;">฿0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            รับ: <span id="acc-metric-bank-in" style="color: var(--accent-success);">฿0.00</span> | 
+                            จ่าย: <span id="acc-metric-bank-out" style="color: var(--accent-danger);">฿0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-card" style="border-left: 4px solid var(--accent-primary); margin-bottom: 0;">
+                    <div class="metric-info">
+                        <h3>💰 รวมเงินคงเหลือสุทธิ</h3>
+                        <div id="acc-metric-overall-balance" class="metric-val" style="font-size: 1.5rem; color: var(--accent-primary);">฿0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            เงินสด + เงินในบัญชีธนาคาร
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="grid-2col" style="margin-top: 1.5rem;">
+                <!-- Record Transaction Form -->
+                <div class="panel-card">
+                    <h2 class="panel-title" id="acc-form-title"><i class="fa-solid fa-file-invoice-dollar"></i> บันทึกรายรับ-รายจ่าย</h2>
+                    <form id="acc-transaction-form" onsubmit="handleSaveTransaction(event)">
+                        <input type="hidden" id="acc-tx-id" value="">
+                        
+                        <div class="form-row-2col">
+                            <div class="form-group">
+                                <label for="acc-tx-type">ประเภทรายการ</label>
+                                <select id="acc-tx-type" class="form-control" required>
+                                    <option value="income">📈 รายรับ (Income)</option>
+                                    <option value="expense">📉 รายจ่าย (Expense)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="acc-tx-wallet">ประเภทเงิน</label>
+                                <select id="acc-tx-wallet" class="form-control" required>
+                                    <option value="cash">💵 เงินสด (Cash)</option>
+                                    <option value="bank">🏦 เงินโอนในบัญชีธนาคาร (Bank Transfer)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2col" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label for="acc-tx-amount">จำนวนเงิน (บาท)</label>
+                                <input type="number" id="acc-tx-amount" class="form-control" min="0.01" step="0.01" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="acc-tx-date">วันที่ทำรายการ</label>
+                                <input type="date" id="acc-tx-date" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="acc-tx-desc">รายละเอียด / คำอธิบายรายการ</label>
+                            <input type="text" id="acc-tx-desc" class="form-control" placeholder="เช่น เงินสนับสนุนจากศิษย์เก่า, ค่าซื้อกระดาษริบบิ้นขบวนพาเหรด" required>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                            <button type="submit" id="btn-save-tx" class="btn btn-primary" style="width: auto; min-width: 160px;">
+                                <i class="fa-solid fa-save"></i> บันทึกรายการ
+                            </button>
+                            <button type="button" id="btn-cancel-edit-tx" class="btn" style="background: var(--bg-tertiary); display: none; width: auto;" onclick="cancelEditTransaction()">
+                                ยกเลิก
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Adjust Initial Balances Form -->
+                    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
+                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;"><i class="fa-solid fa-coins"></i> ตั้งค่าเงินตั้งต้น (Starting Balance)</h3>
+                        <form id="acc-initial-balance-form" onsubmit="handleSaveInitialBalances(event)">
+                            <div class="form-row-2col">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="acc-init-cash" style="font-size: 0.8rem;">เงินสดตั้งต้น (บาท)</label>
+                                    <input type="number" id="acc-init-cash" class="form-control" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="acc-init-bank" style="font-size: 0.8rem;">เงินในบัญชีตั้งต้น (บาท)</label>
+                                    <input type="number" id="acc-init-bank" class="form-control" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                                <button type="submit" class="btn btn-primary" style="width: auto; min-height: auto; padding: 0.4rem 1rem; font-size: 0.85rem;">
+                                    <i class="fa-solid fa-save"></i> บันทึกเงินตั้งต้น
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Transaction Ledger List -->
+                <div class="panel-card">
+                    <h2 class="panel-title"><i class="fa-solid fa-receipt"></i> บัญชีเดินรายการแยกตามประเภทเงิน</h2>
+                    
+                    <!-- Search/Filter -->
+                    <div style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="text" id="acc-tx-search" class="form-control" placeholder="ค้นหาตามคำอธิบาย..." oninput="renderTransactionsList()" style="flex: 1; min-width: 180px;">
+                        <select id="acc-tx-filter-wallet" class="form-control" style="width: 100%; max-width: 150px; padding: 0.5rem;" onchange="renderTransactionsList()">
+                            <option value="all">ทุกประเภทเงิน</option>
+                            <option value="cash">💵 เงินสด</option>
+                            <option value="bank">🏦 เงินโอน</option>
+                        </select>
+                    </div>
+
+                    <!-- Ledger Container -->
+                    <div id="acc-transactions-list" class="ledger-list" style="max-height: 450px; overflow-y: auto; padding-right: 0.25rem;">
+                        <!-- Skeleton Screen (Replaced on load) -->
+                        <div class="skeleton-ledger-item">
+                            <div class="ledger-left">
+                                <div class="skeleton-circle skeleton"></div>
+                                <div class="ledger-info" style="flex: 1; min-width: 120px;">
+                                    <div class="skeleton-text title skeleton" style="margin-bottom: 0.35rem;"></div>
+                                    <div class="skeleton-text subtitle skeleton"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-ledger-right">
+                                <div class="skeleton-amount skeleton" style="margin-right: 0.5rem;"></div>
+                                <div class="skeleton-button skeleton"></div>
+                            </div>
+                        </div>
+                        <div class="skeleton-ledger-item">
+                            <div class="ledger-left">
+                                <div class="skeleton-circle skeleton"></div>
+                                <div class="ledger-info" style="flex: 1; min-width: 120px;">
+                                    <div class="skeleton-text title skeleton" style="margin-bottom: 0.35rem;"></div>
+                                    <div class="skeleton-text subtitle skeleton"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-ledger-right">
+                                <div class="skeleton-amount skeleton" style="margin-right: 0.5rem;"></div>
+                                <div class="skeleton-button skeleton"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -492,7 +726,7 @@
         <div id="member-history-view" class="tab-content">
             <div class="panel-card">
                 <h2 class="panel-title"><i class="fa-solid fa-list-check"></i> ประวัติและสถานะการเบิกเงินของฉัน</h2>
-                <div class="table-container">
+                <div class="table-container table-scroll-y">
                     <table>
                         <thead>
                             <tr>
@@ -549,7 +783,12 @@
                 
                 <!-- Issues List -->
                 <div class="panel-card">
-                    <h2 class="panel-title"><i class="fa-solid fa-list-ul"></i> รายการแจ้งปัญหาและสถานะการแก้ไข</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <h2 class="panel-title" style="margin-bottom: 0;"><i class="fa-solid fa-list-ul"></i> รายการแจ้งปัญหาและสถานะการแก้ไข</h2>
+                        <button id="btn-clear-all-issues" class="btn btn-danger" style="display: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; width: auto;" onclick="deleteAllIssues()">
+                            <i class="fa-solid fa-trash-can"></i> ลบรายการแจ้งทั้งหมด
+                        </button>
+                    </div>
                     <div id="issues-list" style="display: flex; flex-direction: column; gap: 1rem; max-height: 500px; overflow-y: auto; padding-right: 0.5rem;">
                         <!-- Populate dynamically -->
                     </div>
@@ -704,6 +943,17 @@
                 <button id="custom-prompt-submit-btn" class="btn btn-primary" style="flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;">ตกลง</button>
                 <button id="custom-prompt-cancel-btn" class="btn" style="flex: 1; background: var(--bg-tertiary); padding: 0.75rem 1rem; font-size: 0.95rem;" onclick="closeCustomPrompt(null)">ยกเลิก</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Full-screen Loading Overlay -->
+    <div id="full-screen-loader" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.75); z-index: 10000; flex-direction: column; gap: 1.5rem;">
+        <div style="text-align: center; color: white; padding: 2rem; background: var(--bg-secondary); border-radius: 1.25rem; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); max-width: 380px; width: 90%;">
+            <div style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1.25rem;">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <h3 id="loader-title" style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">กำลังบันทึกข้อมูล...</h3>
+            <p id="loader-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; opacity: 0.9;">กรุณารอสักครู่ ระบบกำลังประสานงานกับคลาวด์ Firebase</p>
         </div>
     </div>
 

@@ -67,21 +67,20 @@ const MEMBERS = [
     { id: '39967', firstName: 'กฤติธี',     lastName: 'แสนคำ',       room: '5/1' },
     { id: '39998', firstName: 'เกียรติสกุล', lastName: 'กันกา',       room: '5/1' },
     { id: '40019', firstName: 'จิรัฏฐ์',     lastName: 'บัตริยะ',     room: '5/1' },
-    { id: '40050', firstName: 'จยุตพงศ์',   lastName: 'ดีคำ',        room: '5/1' },
+    { id: '40050', firstName: 'ชยุตพงศ์',   lastName: 'ดีคำ',        room: '5/1' },
     { id: '40059', firstName: 'ชิษณุพงศ์',   lastName: 'ทะจักร์',     room: '5/1' },
-    { id: '40206', firstName: 'ปาลปวีณ์',   lastName: 'สินมณี',      room: '5/1' },
     { id: '40309', firstName: 'ภาวิต',      lastName: 'ภาสสัทธา',    room: '5/1' },
     { id: '40338', firstName: 'วรนน',       lastName: 'สัจจะนรพันธ์', room: '5/1' },
     { id: '40350', firstName: 'วิเชียรรัตน์',  lastName: 'ดอกแก้ว',     room: '5/1' },
     { id: '39993', firstName: 'กิตพร',      lastName: 'เพชรพัฒนากุล', room: '5/1' },
     { id: '40049', firstName: 'ชญาดา',      lastName: 'สมบูรณ์',     room: '5/1' },
-    { id: '40076', firstName: 'ณฤดี',       lastName: 'ศรีเจริญภากร',  room: '5/1' },
-    { id: '40087', firstName: 'ณัฐชยาน์',    lastName: 'แก้วกล้า',     room: '5/1' },
+    { id: '40076', firstName: 'ณฤดี',       lastName: 'ศรีเจริญภาภร',  room: '5/1' },
+    { id: '40087', firstName: 'ณัฐธยาน์',    lastName: 'แก้วกล้า',     room: '5/1' },
     { id: '40092', firstName: 'ณัฐภัสสร',    lastName: 'ยศเลิศ',      room: '5/1' },
     { id: '40122', firstName: 'ธนพร',      lastName: 'ใจยะ',       room: '5/1' },
     { id: '40132', firstName: 'ธนิสตา',     lastName: 'สีอินทร์',     room: '5/1' },
     { id: '40179', firstName: 'ปณิตา',      lastName: 'ถุงพลอย',     room: '5/1' },
-    { id: '40200', firstName: 'ปัทมพร',     lastName: 'กาดเกษม',     room: '5/1' },
+    { id: '40200', firstName: 'ปัทมพร',     lastName: 'กาศเกษม',     room: '5/1' },
     { id: '40202', firstName: 'ปานปั้น',     lastName: 'นุชธิสาร',     room: '5/1' },
     { id: '40245', firstName: 'พัทธนันท์',    lastName: 'คำลือ',       room: '5/1' },
     { id: '40266', firstName: 'พิมพ์ลภัส',    lastName: 'แตกฉาน',      room: '5/1' },
@@ -192,6 +191,28 @@ document.addEventListener('click', function(e) {
     }
 });
 
+
+// Helper: Full-screen Loading Overlay
+function showLoader(title = "กำลังบันทึกข้อมูล...", subtitle = "กรุณารอสักครู่ ระบบกำลังประสานงานกับคลาวด์ Firebase") {
+    const loader = document.getElementById('full-screen-loader');
+    const titleEl = document.getElementById('loader-title');
+    const subtitleEl = document.getElementById('loader-subtitle');
+    if (loader) {
+        if (titleEl) titleEl.textContent = title;
+        if (subtitleEl) subtitleEl.textContent = subtitle;
+        loader.style.display = 'flex';
+    }
+}
+
+function hideLoader() {
+    const loader = document.getElementById('full-screen-loader');
+    if (loader) {
+        // A tiny delay ensures the user sees the spinner and guarantees state/UI rendering has completed
+        setTimeout(() => {
+            loader.style.display = 'none';
+        }, 500);
+    }
+}
 
 // Helper: Format currency
 function formatCurrency(amount) {
@@ -331,6 +352,18 @@ function getDeptDisplayName(deptCode) {
     return DEPARTMENTS[deptCode] ? DEPARTMENTS[deptCode].name : deptCode || 'ไม่ระบุฝ่าย';
 }
 
+// Helper: Download QR Code image
+function downloadQR(src, name) {
+    if (!src) return;
+    const filename = `QR_${name.replace(/[^a-zA-Z0-9\u0E00-\u0E7F]+/g, '_')}.png`;
+    const link = document.createElement('a');
+    link.href = src;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 // Database-supported Save & Load Handlers (Firebase, IndexedDB & LocalStorage fallback)
 function saveToLocalStorage() {
     // 1. Save to LocalStorage immediately with try-catch to handle quota limits
@@ -339,7 +372,7 @@ function saveToLocalStorage() {
     } catch (e) {
         console.error("LocalStorage save failed:", e);
         if (e.name === 'QuotaExceededError' || e.code === 22 || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            showCustomAlert("⚠️ บันทึกข้อมูลลงเบราว์เซอร์ไม่สำเร็จเนื่องจากขนาดรูปภาพใหญ่เกินขีดจำกัด (Quota Exceeded) ระบบจะพยายามบันทึกลงฐานข้อมูลสำรอง IndexedDB แทน");
+            console.warn("LocalStorage quota exceeded. System is using IndexedDB backup instead.");
         }
     }
     
@@ -373,6 +406,16 @@ function syncItemToFirebase(collectionName, itemId, data, retryCount = 0) {
         return db.collection(collectionName).doc(itemId).set(data)
             .then(() => {
                 console.log(`🔥 Synced document: ${collectionName}/${itemId}`);
+                if (['requests', 'incomes', 'logs', 'issues', 'transactions'].includes(collectionName)) {
+                    const list = state[collectionName];
+                    if (list) {
+                        const item = list.find(x => x.id === itemId);
+                        if (item) {
+                            item._synced = true;
+                            saveToLocalStorage();
+                        }
+                    }
+                }
             })
             .catch(err => {
                 console.error(`Firebase sync error for ${collectionName}/${itemId} (Attempt ${retryCount + 1}/3):`, err);
@@ -411,8 +454,10 @@ function seedFirebaseFromLocal() {
     state.incomes.forEach(inc => syncItemToFirebase('incomes', inc.id, inc));
     state.logs.forEach(log => syncItemToFirebase('logs', log.id, log));
     state.issues.forEach(issue => syncItemToFirebase('issues', issue.id, issue));
+    state.transactions.forEach(tx => syncItemToFirebase('transactions', tx.id, tx));
     syncItemToFirebase('settings', 'allocations', state.allocations);
     syncItemToFirebase('settings', 'members', { list: state.members });
+    syncItemToFirebase('settings', 'initial_balances', { cash: state.initialCash, bank: state.initialBank });
 }
 
 function sanitizeState() {
@@ -424,11 +469,19 @@ function sanitizeState() {
             requests: [],
             logs: [],
             issues: [],
-            members: [...MEMBERS]
+            members: [...MEMBERS],
+            transactions: [],
+            initialCash: 0,
+            initialBank: 0,
+            membersVersion: 5,
+            membersLastUpdated: Date.now()
         };
         return;
     }
     if (!state.incomes) state.incomes = [];
+    if (!state.transactions) state.transactions = [];
+    if (state.initialCash === undefined) state.initialCash = 0;
+    if (state.initialBank === undefined) state.initialBank = 0;
     if (!state.allocations) {
         state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
     } else {
@@ -444,43 +497,17 @@ function sanitizeState() {
     if (!state.issues) state.issues = [];
     if (!state.members || state.members.length === 0) {
         state.members = [...MEMBERS];
+        state.membersVersion = 5;
+        state.membersLastUpdated = Date.now();
     } else {
-        // ตรวจสอบว่าเคยอัปเกรดข้อมูลห้องเรียนไปแล้วหรือยัง (เช็คว่ามีสมาชิกที่มีข้อมูลห้องเรียนอยู่แล้วหรือไม่)
-        const hasRooms = state.members.some(m => m.room !== undefined);
-        
-        if (!hasRooms) {
-            // อัปเกรดข้อมูลห้องเรียนและแก้ไขตัวสะกดให้ถูกต้องเฉพาะในครั้งแรกเท่านั้น
-            const ids_5_1 = [
-                '39967', '39998', '40019', '40050', '40059', '40206', '40309', '40338', '40350',
-                '39993', '40049', '40076', '40087', '40092', '40122', '40132', '40179', '40200',
-                '40202', '40245', '40266', '40294', '40352', '40363', '40376', '40380', '42242',
-                '42260', '42283'
-            ];
-            
-            const nameMap = {
-                '40050': { firstName: 'จยุตพงศ์', lastName: 'ดีคำ' },
-                '40049': { firstName: 'ชญาดา', lastName: 'สมบูรณ์' },
-                '40087': { firstName: 'ณัฐชยาน์', lastName: 'แก้วกล้า' },
-                '40200': { firstName: 'ปัทมพร', lastName: 'กาดเกษม' }
-            };
-            
-            // เพิ่ม 40206 (ปาลปวีณ์ สินมณี) เข้าไปในระบบหากยังไม่มี
-            if (!state.members.some(m => m.id === '40206')) {
-                state.members.push({ id: '40206', firstName: 'ปาลปวีณ์', lastName: 'สินมณี', room: '5/1' });
-            }
-            
-            state.members.forEach(m => {
-                m.room = ids_5_1.includes(m.id) ? '5/1' : '5/8';
-                if (nameMap[m.id]) {
-                    m.firstName = nameMap[m.id].firstName;
-                    m.lastName = nameMap[m.id].lastName;
-                }
-            });
-            
-            // บันทึกและซิงก์ข้อมูลทันทีหลังอัปเกรด
+        const CURRENT_MEMBERS_VERSION = 5;
+        if ((state.membersVersion || 0) < CURRENT_MEMBERS_VERSION) {
+            state.members = [...MEMBERS];
+            state.membersVersion = CURRENT_MEMBERS_VERSION;
+            state.membersLastUpdated = Date.now();
             saveToLocalStorage();
             if (useFirebase && db) {
-                syncItemToFirebase('settings', 'members', { list: state.members });
+                syncItemToFirebase('settings', 'members', { list: state.members, lastUpdated: state.membersLastUpdated });
             }
         }
     }
@@ -508,8 +535,10 @@ function loadFromDatabase(callback) {
             db.collection('logs').get(),
             db.collection('issues').get(),
             db.collection('settings').doc('allocations').get(),
-            db.collection('settings').doc('members').get()
-        ]).then(([requestsSnap, incomesSnap, logsSnap, issuesSnap, allocationsSnap, membersSnap]) => {
+            db.collection('settings').doc('members').get(),
+            db.collection('transactions').get(),
+            db.collection('settings').doc('initial_balances').get()
+        ]).then(([requestsSnap, incomesSnap, logsSnap, issuesSnap, allocationsSnap, membersSnap, transactionsSnap, initialBalancesSnap]) => {
             if (hasLoaded) return;
             hasLoaded = true;
             clearTimeout(fbTimeout);
@@ -517,7 +546,7 @@ function loadFromDatabase(callback) {
             useFirebase = true;
             const currentUser = state.user;
             
-            if (requestsSnap.empty && incomesSnap.empty && logsSnap.empty && issuesSnap.empty) {
+            if (requestsSnap.empty && incomesSnap.empty && logsSnap.empty && issuesSnap.empty && (!transactionsSnap || transactionsSnap.empty)) {
                 console.log("Firebase contains no collection data. Seeding with local state...");
                 seedFirebaseFromLocal();
                 setupFirebaseRealtimeListener();
@@ -534,12 +563,18 @@ function loadFromDatabase(callback) {
                 const localRequests = [...state.requests];
                 
                 state.requests = [];
-                requestsSnap.forEach(doc => state.requests.push(doc.data()));
+                requestsSnap.forEach(doc => {
+                    const data = doc.data();
+                    data._synced = true;
+                    state.requests.push(data);
+                });
                 
                 localRequests.forEach(req => {
                     if (!firestoreReqIds.has(req.id)) {
-                        state.requests.push(req);
-                        syncItemToFirebase('requests', req.id, req);
+                        if (req._synced !== true) {
+                            state.requests.push(req);
+                            syncItemToFirebase('requests', req.id, req);
+                        }
                     }
                 });
 
@@ -549,12 +584,18 @@ function loadFromDatabase(callback) {
                 const localIncomes = [...state.incomes];
                 
                 state.incomes = [];
-                incomesSnap.forEach(doc => state.incomes.push(doc.data()));
+                incomesSnap.forEach(doc => {
+                    const data = doc.data();
+                    data._synced = true;
+                    state.incomes.push(data);
+                });
                 
                 localIncomes.forEach(inc => {
                     if (!firestoreIncIds.has(inc.id)) {
-                        state.incomes.push(inc);
-                        syncItemToFirebase('incomes', inc.id, inc);
+                        if (inc._synced !== true) {
+                            state.incomes.push(inc);
+                            syncItemToFirebase('incomes', inc.id, inc);
+                        }
                     }
                 });
 
@@ -564,12 +605,18 @@ function loadFromDatabase(callback) {
                 const localLogs = [...state.logs];
                 
                 state.logs = [];
-                logsSnap.forEach(doc => state.logs.push(doc.data()));
+                logsSnap.forEach(doc => {
+                    const data = doc.data();
+                    data._synced = true;
+                    state.logs.push(data);
+                });
                 
                 localLogs.forEach(log => {
                     if (!firestoreLogIds.has(log.id)) {
-                        state.logs.push(log);
-                        syncItemToFirebase('logs', log.id, log);
+                        if (log._synced !== true) {
+                            state.logs.push(log);
+                            syncItemToFirebase('logs', log.id, log);
+                        }
                     }
                 });
 
@@ -579,23 +626,97 @@ function loadFromDatabase(callback) {
                 const localIssues = [...state.issues];
                 
                 state.issues = [];
-                issuesSnap.forEach(doc => state.issues.push(doc.data()));
+                issuesSnap.forEach(doc => {
+                    const data = doc.data();
+                    data._synced = true;
+                    state.issues.push(data);
+                });
                 
                 localIssues.forEach(issue => {
                     if (!firestoreIssueIds.has(issue.id)) {
-                        state.issues.push(issue);
-                        syncItemToFirebase('issues', issue.id, issue);
+                        if (issue._synced !== true) {
+                            state.issues.push(issue);
+                            syncItemToFirebase('issues', issue.id, issue);
+                        }
+                    }
+                });
+
+                // Merge transactions
+                const firestoreTxIds = new Set();
+                if (transactionsSnap) {
+                    transactionsSnap.forEach(doc => firestoreTxIds.add(doc.id));
+                }
+                const localTransactions = [...state.transactions];
+                
+                state.transactions = [];
+                if (transactionsSnap) {
+                    transactionsSnap.forEach(doc => {
+                        const data = doc.data();
+                        data._synced = true;
+                        state.transactions.push(data);
+                    });
+                }
+                
+                localTransactions.forEach(tx => {
+                    if (!firestoreTxIds.has(tx.id)) {
+                        if (tx._synced !== true) {
+                            state.transactions.push(tx);
+                            syncItemToFirebase('transactions', tx.id, tx);
+                        }
                     }
                 });
                 
+                // Merge allocations with conflict resolution
                 if (allocationsSnap.exists) {
-                    state.allocations = allocationsSnap.data();
+                    const fbData = allocationsSnap.data();
+                    const fbLastUpdated = fbData.lastUpdated || 0;
+                    const localLastUpdated = state.allocationsLastUpdated || 0;
+                    
+                    if (localLastUpdated > fbLastUpdated) {
+                        syncItemToFirebase('settings', 'allocations', { ...state.allocations, lastUpdated: localLastUpdated });
+                    } else {
+                        const { lastUpdated, ...cleanAlloc } = fbData;
+                        state.allocations = cleanAlloc;
+                        state.allocationsLastUpdated = fbLastUpdated;
+                    }
                 } else {
-                    state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
+                    state.allocationsLastUpdated = Date.now();
+                    syncItemToFirebase('settings', 'allocations', { ...state.allocations, lastUpdated: state.allocationsLastUpdated });
                 }
 
+                // Merge members with conflict resolution
                 if (membersSnap && membersSnap.exists) {
-                    state.members = membersSnap.data().list || [];
+                    const fbData = membersSnap.data();
+                    const fbLastUpdated = fbData.lastUpdated || 0;
+                    const localLastUpdated = state.membersLastUpdated || 0;
+                    
+                    if (localLastUpdated > fbLastUpdated) {
+                        syncItemToFirebase('settings', 'members', { list: state.members, lastUpdated: localLastUpdated });
+                    } else {
+                        state.members = fbData.list || [];
+                        state.membersLastUpdated = fbLastUpdated;
+                    }
+                } else {
+                    state.membersLastUpdated = Date.now();
+                    syncItemToFirebase('settings', 'members', { list: state.members, lastUpdated: state.membersLastUpdated });
+                }
+                
+                // Merge initial balances with conflict resolution
+                if (initialBalancesSnap && initialBalancesSnap.exists) {
+                    const fbData = initialBalancesSnap.data();
+                    const fbLastUpdated = fbData.lastUpdated || 0;
+                    const localLastUpdated = state.initialBalancesLastUpdated || 0;
+                    
+                    if (localLastUpdated > fbLastUpdated) {
+                        syncItemToFirebase('settings', 'initial_balances', { cash: state.initialCash, bank: state.initialBank, lastUpdated: localLastUpdated });
+                    } else {
+                        state.initialCash = fbData.cash || 0;
+                        state.initialBank = fbData.bank || 0;
+                        state.initialBalancesLastUpdated = fbLastUpdated;
+                    }
+                } else {
+                    state.initialBalancesLastUpdated = Date.now();
+                    syncItemToFirebase('settings', 'initial_balances', { cash: state.initialCash, bank: state.initialBank, lastUpdated: state.initialBalancesLastUpdated });
                 }
                 
                 state.user = currentUser;
@@ -649,6 +770,7 @@ function setupFirebaseRealtimeListener() {
             const idx = state.requests.findIndex(r => r.id === docData.id);
             if (change.type === 'added' || change.type === 'modified') {
                 const oldDoc = idx > -1 ? { ...state.requests[idx] } : null;
+                docData._synced = true;
                 if (idx > -1) {
                     state.requests[idx] = docData;
                 } else {
@@ -683,6 +805,7 @@ function setupFirebaseRealtimeListener() {
             const docData = change.doc.data();
             const idx = state.incomes.findIndex(i => i.id === docData.id);
             if (change.type === 'added' || change.type === 'modified') {
+                docData._synced = true;
                 if (idx > -1) {
                     state.incomes[idx] = docData;
                 } else {
@@ -705,6 +828,7 @@ function setupFirebaseRealtimeListener() {
             const docData = change.doc.data();
             const idx = state.logs.findIndex(l => l.id === docData.id);
             if (change.type === 'added' || change.type === 'modified') {
+                docData._synced = true;
                 if (idx > -1) {
                     state.logs[idx] = docData;
                 } else {
@@ -727,6 +851,7 @@ function setupFirebaseRealtimeListener() {
             const docData = change.doc.data();
             const idx = state.issues.findIndex(i => i.id === docData.id);
             if (change.type === 'added' || change.type === 'modified') {
+                docData._synced = true;
                 if (idx > -1) {
                     state.issues[idx] = docData;
                 } else {
@@ -746,9 +871,17 @@ function setupFirebaseRealtimeListener() {
     // 5. Listen to allocations
     const unsubAllocations = db.collection('settings').doc('allocations').onSnapshot(doc => {
         if (doc.exists) {
-            state.allocations = doc.data();
-            saveToLocalStorage();
-            if (state.user) renderAll();
+            const fbData = doc.data();
+            const fbLastUpdated = fbData.lastUpdated || 0;
+            const localLastUpdated = state.allocationsLastUpdated || 0;
+            
+            if (fbLastUpdated > localLastUpdated) {
+                const { lastUpdated, ...cleanAlloc } = fbData;
+                state.allocations = cleanAlloc;
+                state.allocationsLastUpdated = fbLastUpdated;
+                saveToLocalStorage();
+                if (state.user) renderAll();
+            }
         }
     }, err => console.error("Realtime allocations sync error:", err));
     firebaseListeners.push(unsubAllocations);
@@ -756,18 +889,82 @@ function setupFirebaseRealtimeListener() {
     // 6. Listen to members
     const unsubMembers = db.collection('settings').doc('members').onSnapshot(doc => {
         if (doc.exists) {
-            state.members = doc.data().list || [];
-            saveToLocalStorage();
-            if (state.user) {
-                renderAll();
-                const presidentMembersPanel = document.getElementById('president-members-panel');
-                if (presidentMembersPanel && presidentMembersPanel.style.display === 'block') {
-                    renderAdminMembersList();
+            const fbData = doc.data();
+            const fbLastUpdated = fbData.lastUpdated || 0;
+            const localLastUpdated = state.membersLastUpdated || 0;
+            
+            if (fbLastUpdated > localLastUpdated) {
+                state.members = fbData.list || [];
+                state.membersLastUpdated = fbLastUpdated;
+                saveToLocalStorage();
+                if (state.user) {
+                    renderAll();
+                    const presidentMembersPanel = document.getElementById('president-members-panel');
+                    if (presidentMembersPanel && presidentMembersPanel.style.display === 'block') {
+                        renderAdminMembersList();
+                    }
                 }
             }
         }
     }, err => console.error("Realtime members sync error:", err));
     firebaseListeners.push(unsubMembers);
+
+    // 7. Listen to transactions
+    const unsubTransactions = db.collection('transactions').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const docData = change.doc.data();
+            const idx = state.transactions.findIndex(t => t.id === docData.id);
+            if (change.type === 'added' || change.type === 'modified') {
+                docData._synced = true;
+                if (idx > -1) {
+                    state.transactions[idx] = docData;
+                } else {
+                    state.transactions.push(docData);
+                }
+            } else if (change.type === 'removed') {
+                if (idx > -1) {
+                    state.transactions.splice(idx, 1);
+                }
+            }
+        });
+        saveToLocalStorage();
+        if (state.user) {
+            renderAll();
+            const activeTabContent = document.querySelector('.tab-content.active');
+            if (activeTabContent && activeTabContent.id === 'accounts-view') {
+                renderTransactionsList();
+            }
+        }
+    }, err => console.error("Realtime transactions sync error:", err));
+    firebaseListeners.push(unsubTransactions);
+
+    // 8. Listen to initial balances
+    const unsubInitialBalances = db.collection('settings').doc('initial_balances').onSnapshot(doc => {
+        if (doc.exists) {
+            const fbData = doc.data();
+            const fbLastUpdated = fbData.lastUpdated || 0;
+            const localLastUpdated = state.initialBalancesLastUpdated || 0;
+            
+            if (fbLastUpdated > localLastUpdated) {
+                state.initialCash = fbData.cash || 0;
+                state.initialBank = fbData.bank || 0;
+                state.initialBalancesLastUpdated = fbLastUpdated;
+                saveToLocalStorage();
+                if (state.user) {
+                    renderAll();
+                    const initCashInput = document.getElementById('acc-init-cash');
+                    const initBankInput = document.getElementById('acc-init-bank');
+                    if (initCashInput && document.activeElement !== initCashInput) {
+                        initCashInput.value = state.initialCash || '';
+                    }
+                    if (initBankInput && document.activeElement !== initBankInput) {
+                        initBankInput.value = state.initialBank || '';
+                    }
+                }
+            }
+        }
+    }, err => console.error("Realtime initial balances sync error:", err));
+    firebaseListeners.push(unsubInitialBalances);
 }
 
 // Clear all data from Firebase Firestore
@@ -800,13 +997,20 @@ function clearFirebaseDatabase() {
         return batch.commit();
     });
 
+    const pTransactions = db.collection('transactions').get().then(snap => {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        return batch.commit();
+    });
+
     const pSettings = db.collection('settings').doc('allocations').delete();
     const pMembers = db.collection('settings').doc('members').delete();
+    const pInitBal = db.collection('settings').doc('initial_balances').delete();
 
     // Also delete the old flat state doc to clean up the user's DB
     const pOldDoc = db.collection('settings').doc('pink_team_state').delete();
 
-    return Promise.all([pRequests, pIncomes, pLogs, pIssues, pSettings, pOldDoc, pMembers]);
+    return Promise.all([pRequests, pIncomes, pLogs, pIssues, pSettings, pOldDoc, pMembers, pTransactions, pInitBal]);
 }
 
 // Handle system database reset click
@@ -832,6 +1036,9 @@ function handleSystemReset() {
                 state.requests = [];
                 state.logs = [];
                 state.issues = [];
+                state.transactions = [];
+                state.initialCash = 0;
+                state.initialBank = 0;
                 state.allocations = { stand: 0, leaders: 0, parade: 0, welfare: 0, props: 0, sports: 0 };
                 
                 saveToLocalStorage();
@@ -952,6 +1159,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
     }
 
+    // Initialize mobile tab scroll indicator chevrons
+    initTabScrollIndicators();
+
     // Force-clear login fields to override browser autofill (Chrome fills AFTER DOMContentLoaded)
     setTimeout(() => {
         const nameInput = document.getElementById('login-member-name');
@@ -963,14 +1173,20 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 150);
 
     // Load local database data first before resolving session & fetching firebase
+    updateSplashProgress(20, 'กำลังเปิดหน่วยความจำในเครื่อง...');
     loadLocalData(() => {
         // Render UI immediately using local data
+        updateSplashProgress(50, 'ดึงประวัติการเงินส่วนท้องถิ่น...');
         checkSession();
+        migrateOldDataToTransactions();
         
         // Then start loading Firebase in the background
+        updateSplashProgress(75, 'กำลังเชื่อมต่อฐานข้อมูลคลาวด์...');
         loadFromDatabase(() => {
             // Once Firebase finishes loading, re-run checkSession to update everything
+            updateSplashProgress(100, 'ซิงก์ข้อมูลคลาวด์สำเร็จ!');
             checkSession();
+            migrateOldDataToTransactions();
         });
     });
 });
@@ -1018,8 +1234,9 @@ function checkSession() {
             document.getElementById('tab-pending').style.display = '';
             document.getElementById('tab-logs').style.display = '';
             
-            // All users with president role (admin, Aom, km789) can manage members
+            // All users with president role (admin, Aom, km789) can manage members and accounts
             document.getElementById('tab-members').style.display = '';
+            document.getElementById('tab-accounts').style.display = '';
             
             // Default view for President
             switchTab('pending-view');
@@ -1036,6 +1253,7 @@ function checkSession() {
             document.getElementById('tab-pending').style.display = 'none';
             document.getElementById('tab-logs').style.display = 'none';
             document.getElementById('tab-members').style.display = 'none';
+            document.getElementById('tab-accounts').style.display = 'none';
             
             // Default view for Member
             switchTab('request-view');
@@ -1272,6 +1490,7 @@ function renderAll() {
     renderLogsList();
     renderMemberHistory();
     renderIssuesList();
+    renderTransactionsView();
     
     // Update offline banner state dynamically
     const offlineBanner = document.getElementById('offline-banner');
@@ -1306,12 +1525,17 @@ function switchTab(viewId) {
         'logs-view': 'tab-logs',
         'member-history-view': 'tab-member-history',
         'issues-view': 'tab-issues',
-        'members-view': 'tab-members'
+        'members-view': 'tab-members',
+        'accounts-view': 'tab-accounts'
     };
     document.getElementById(map[viewId]).classList.add('active');
     
     if (viewId === 'members-view') {
         renderAdminMembersList();
+    } else if (viewId === 'accounts-view') {
+        cancelEditTransaction();
+        renderTransactionsView();
+        renderTransactionsList();
     }
 }
 
@@ -1423,7 +1647,7 @@ function renderRecentTransactions() {
     // Sort transactions by date descending
     txList.sort((a, b) => new Date(b.date) - new Date(a.date));
     
-    const limit = Math.min(txList.length, 5);
+    const limit = txList.length;
     if (limit === 0) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">ไม่มีประวัติธุรกรรมล่าสุด</td></tr>`;
         return;
@@ -1447,7 +1671,7 @@ function renderRecentTransactions() {
                 <div style="font-weight: 500;">${tx.desc}</div>
                 <div style="font-size:0.7rem; color:var(--text-muted);">${tx.type === 'income' ? 'นำเข้าคลังสี' : 'เบิกจ่ายคืนสมาชิก'}</div>
             </td>
-            <td style="font-weight: 600; color: ${amountColor}">${amountPrefix}${formatCurrency(tx.amount)}</td>
+            <td class="amount-col" style="font-weight: 600; color: ${amountColor}">${amountPrefix}${formatCurrency(tx.amount)}</td>
             <td>${slipCell}</td>
         `;
         tbody.appendChild(tr);
@@ -1552,10 +1776,13 @@ function renderPendingQueue() {
                             </div>
                             <div>
                                 <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">📱 QR Code รับเงิน:</div>
-                                <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-                                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden; flex-shrink: 0;">
                                         <img src="${req.qrcode || MOCK_QRCODE_SVG}" onclick="viewImage('${req.qrcode || MOCK_QRCODE_SVG}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="QR Code">
                                     </div>
+                                    <button class="btn" style="min-height: auto; width: auto; font-size: 0.75rem; padding: 0.35rem 0.6rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${req.qrcode || MOCK_QRCODE_SVG}', '${req.name}_${req.item}')">
+                                        <i class="fa-solid fa-download"></i> ดาวน์โหลด QR
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1932,6 +2159,7 @@ function handleRequestSubmit(event) {
     
     saveToLocalStorage();
     
+    showLoader("กำลังส่งคำขอเบิกเงิน...", "กรุณารอสักครู่ ระบบกำลังอัปโหลดเอกสารหลักฐานและบันทึกลง Firebase...");
     const p1 = syncItemToFirebase('requests', newRequest.id, newRequest);
     const p2 = syncItemToFirebase('logs', newLog.id, newLog);
     
@@ -1953,12 +2181,15 @@ function handleRequestSubmit(event) {
         document.getElementById('form-budget-warning').style.display = 'none';
         
         renderAll();
+        hideLoader();
         showCustomAlert('ส่งใบเบิกเข้าคลังสวัสดิการสำเร็จเรียบร้อย! ประธานสวัสดิการสีชมพูจะสแกนโอนเงินตามลำดับคิว', 'success');
         switchTab('request-view');
     }).catch(err => {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
         console.error("Submission sync failure:", err);
+        hideLoader();
+        showCustomAlert("เกิดข้อผิดพลาดขณะส่งใบเบิก: " + err.message, "error");
     });
 }
 
@@ -1995,13 +2226,22 @@ function handleIncomeSubmit(event) {
     state.logs.push(newLog);
     
     saveToLocalStorage();
-    syncItemToFirebase('incomes', newIncome.id, newIncome);
-    syncItemToFirebase('logs', newLog.id, newLog);
-    renderAll();
+    showLoader("กำลังบันทึกรายรับ...", "ระบบกำลังบันทึกรายรับและประวัติลง Firebase...");
+    const p1 = syncItemToFirebase('incomes', newIncome.id, newIncome);
+    const p2 = syncItemToFirebase('logs', newLog.id, newLog);
     
-    document.getElementById('income-form').reset();
-    document.getElementById('inc-actor').value = state.user.name;
-    showCustomAlert('บันทึกยอดเงินรับเข้าคลังเรียบร้อย!');
+    Promise.all([p1, p2]).then(() => {
+        migrateOldDataToTransactions();
+        renderAll();
+        document.getElementById('income-form').reset();
+        document.getElementById('inc-actor').value = state.user.name;
+        hideLoader();
+        showCustomAlert('บันทึกยอดเงินรับเข้าคลังเรียบร้อย!');
+    }).catch(err => {
+        console.error("Income sync failure:", err);
+        hideLoader();
+        showCustomAlert("บันทึกลงฐานข้อมูลไม่สำเร็จ: " + err.message, "error");
+    });
 }
 
 // Quota allocation features removed as per configuration updates
@@ -2029,8 +2269,11 @@ function openApproveModal(reqId) {
         <p><strong>รายการเบิก:</strong> ${req.item}</p>
         <p><strong>จำนวนเงิน:</strong> <span style="font-size: 1.25rem; font-weight: 700; color: var(--accent-primary);">${formatCurrency(req.amount)}</span></p>
         <p><strong>ผู้รับเงิน:</strong> ${req.name} (ฝ่าย${getDeptDisplayName(req.department)})</p>
-        <div style="display:flex; justify-content:center; margin-top: 1rem;">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 1rem; gap: 0.5rem;">
             <img src="${req.qrcode}" style="max-height: 150px; border-radius: 0.5rem; border: 1px solid var(--border-color);" alt="Transfer QR Code">
+            <button class="btn" style="min-height: auto; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${req.qrcode}', '${req.name}_${req.item}')">
+                <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
+            </button>
         </div>
     `;
     
@@ -2059,7 +2302,10 @@ function confirmApprove() {
     const req = state.requests.find(r => r.id === reqId);
     if (!req) return;
     
+    // Check if president uploaded a slip
+    const fileInput = document.getElementById('upload-transfer-slip');
     const transferSlipSrc = document.getElementById('transfer-slip-preview').querySelector('img').src;
+    const hasNewSlip = fileInput && fileInput.files && fileInput.files.length > 0;
     
     // Hide buttons, show progress bar
     document.getElementById('approve-modal-buttons').style.display = 'none';
@@ -2069,28 +2315,23 @@ function confirmApprove() {
     
     // Animate progress bar fill
     setTimeout(() => {
-        document.getElementById('transfer-progress-fill').style.width = '100%';
+        const fill = document.getElementById('transfer-progress-fill');
+        if (fill) fill.style.width = '100%';
     }, 50);
     
-    // Compress all request images on the fly before saving to keep document size minimal
-    const slipPromise = compressImagePromise(transferSlipSrc, 800, 800, 0.3);
-    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.3);
-    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
-    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
+    // Only compress the new transfer slip if uploaded, otherwise use mock or existing
+    let slipPromise = Promise.resolve(MOCK_SLIP_SVG);
+    if (hasNewSlip && transferSlipSrc && transferSlipSrc.startsWith('data:image')) {
+        slipPromise = compressImagePromise(transferSlipSrc, 800, 800, 0.3);
+    } else if (transferSlipSrc && transferSlipSrc.startsWith('data:image')) {
+        slipPromise = Promise.resolve(transferSlipSrc);
+    }
     
-    Promise.all([
-        slipPromise,
-        qrcodePromise,
-        Promise.all(receiptPromises),
-        Promise.all(productPromises)
-    ]).then(([compressedSlip, compressedQr, compressedReceipts, compressedProducts]) => {
+    slipPromise.then((compressedSlip) => {
         setTimeout(() => {
             req.status = 'approved';
             req.approvedBy = state.user.name;
             req.transferSlip = compressedSlip || MOCK_SLIP_SVG;
-            req.qrcode = compressedQr;
-            req.receipts = compressedReceipts;
-            req.productPhotos = compressedProducts;
             
             // Clean legacy single-image fields to keep document size extra small
             delete req.receipt;
@@ -2109,11 +2350,27 @@ function confirmApprove() {
             state.logs.push(newLog);
             
             saveToLocalStorage();
-            syncItemToFirebase('requests', req.id, req);
-            syncItemToFirebase('logs', newLog.id, newLog);
-            renderAll();
-            closeApproveModal();
-            showCustomAlert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
+            
+            showLoader("กำลังบันทึกข้อมูลการโอนเงิน...", "ระบบกำลังบันทึกใบเบิกที่อนุมัติและประวัติลง Firebase...");
+            const p1 = syncItemToFirebase('requests', req.id, req);
+            const p2 = syncItemToFirebase('logs', newLog.id, newLog);
+            
+            Promise.all([p1, p2]).then(() => {
+                migrateOldDataToTransactions();
+                renderAll();
+                closeApproveModal();
+                hideLoader();
+                showCustomAlert('อนุมัติการจ่ายเงินคืนเรียบร้อย! ข้อมูลถูกบันทึกลงระบบพร้อมสลิปแนบหลักฐานเรียบร้อยแล้ว');
+            }).catch(err => {
+                console.error("Approve sync failure:", err);
+                hideLoader();
+                // Restore buttons and hide progress in case of db error
+                document.getElementById('approve-modal-buttons').style.display = 'flex';
+                document.getElementById('president-slip-upload-group').style.display = 'block';
+                document.getElementById('transfer-progress-bar').style.display = 'none';
+                document.getElementById('transfer-status-text').style.display = 'none';
+                showCustomAlert("บันทึกลงฐานข้อมูลไม่สำเร็จ: " + err.message, "error");
+            });
         }, 1200);
     }).catch(err => {
         console.error('Approve compression error:', err);
@@ -2159,22 +2416,10 @@ function confirmReject() {
     cancelBtn.disabled = true;
     rejectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
     
-    // Compress all request images on the fly before saving to keep document size minimal
-    const qrcodePromise = compressImagePromise(req.qrcode, 500, 500, 0.3);
-    const receiptPromises = (req.receipts || [req.receipt]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
-    const productPromises = (req.productPhotos || [req.productPhoto]).filter(Boolean).map(src => compressImagePromise(src, 800, 800, 0.3));
-    
-    Promise.all([
-        qrcodePromise,
-        Promise.all(receiptPromises),
-        Promise.all(productPromises)
-    ]).then(([compressedQr, compressedReceipts, compressedProducts]) => {
+    setTimeout(() => {
         req.status = 'rejected';
         req.rejectReason = reason;
         req.approvedBy = state.user.name;
-        req.qrcode = compressedQr;
-        req.receipts = compressedReceipts;
-        req.productPhotos = compressedProducts;
         
         // Clean legacy single-image fields to keep document size extra small
         delete req.receipt;
@@ -2191,25 +2436,29 @@ function confirmReject() {
         state.logs.push(newLog);
         
         saveToLocalStorage();
-        syncItemToFirebase('requests', req.id, req);
-        syncItemToFirebase('logs', newLog.id, newLog);
-        renderAll();
         
-        // Restore buttons
-        rejectBtn.disabled = false;
-        cancelBtn.disabled = false;
-        rejectBtn.innerHTML = originalText;
+        showLoader("กำลังปฏิเสธใบเบิกเงิน...", "ระบบกำลังบันทึกประวัติการปฏิเสธลง Firebase...");
+        const p1 = syncItemToFirebase('requests', req.id, req);
+        const p2 = syncItemToFirebase('logs', newLog.id, newLog);
         
-        closeRejectModal();
-        showCustomAlert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
-    }).catch(err => {
-        console.error('Reject compression error:', err);
-        // Restore buttons
-        rejectBtn.disabled = false;
-        cancelBtn.disabled = false;
-        rejectBtn.innerHTML = originalText;
-        showCustomAlert('เกิดข้อผิดพลาดขณะบันทึกการปฏิเสธ: ' + err.message, 'error');
-    });
+        Promise.all([p1, p2]).then(() => {
+            renderAll();
+            // Restore buttons
+            rejectBtn.disabled = false;
+            cancelBtn.disabled = false;
+            rejectBtn.innerHTML = originalText;
+            closeRejectModal();
+            hideLoader();
+            showCustomAlert('บันทึกการปฏิเสธใบเบิกเงินลงประวัติสำเร็จ');
+        }).catch(err => {
+            console.error("Reject sync failure:", err);
+            rejectBtn.disabled = false;
+            cancelBtn.disabled = false;
+            rejectBtn.innerHTML = originalText;
+            hideLoader();
+            showCustomAlert("บันทึกลงฐานข้อมูลไม่สำเร็จ: " + err.message, "error");
+        });
+    }, 300);
 }
 
 // Render Member's Personal History
@@ -2255,7 +2504,7 @@ function renderMemberHistory() {
                 <div style="font-weight: 500;">[${getDeptDisplayName(req.department)}] ${req.item}</div>
                 ${req.memo ? `<div style="font-size:0.75rem; color:var(--text-secondary);">หมายเหตุ: ${req.memo}</div>` : ''}
             </td>
-            <td style="font-weight: 600;">${formatCurrency(req.amount)}</td>
+            <td class="amount-col" style="font-weight: 600;">${formatCurrency(req.amount)}</td>
             <td>${statusBadge}</td>
             <td>${slipCell}</td>
         `;
@@ -2361,6 +2610,12 @@ function renderIssuesList() {
     const list = document.getElementById('issues-list');
     if (!list) return;
     list.innerHTML = '';
+
+    // Show/hide clear all button
+    const clearBtn = document.getElementById('btn-clear-all-issues');
+    if (clearBtn) {
+        clearBtn.style.display = (state.user && state.user.role === 'president') ? 'inline-flex' : 'none';
+    }
     
     // Sort issues by date descending
     const sortedIssues = [...state.issues].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -2393,7 +2648,7 @@ function renderIssuesList() {
         let actionButtons = '';
         if (state.user && state.user.role === 'president') {
             actionButtons = `
-                <div style="display:flex; gap: 0.35rem; margin-top: 0.5rem;">
+                <div style="display:flex; gap: 0.35rem; margin-top: 0.5rem; flex-wrap: wrap;">
                     ${issue.status === 'pending' ? `
                         <button class="btn btn-success" style="font-size: 0.75rem; padding: 0.35rem 0.5rem; width: auto;" onclick="resolveIssue('${issue.id}')">
                             <i class="fa-solid fa-check"></i> ทำเครื่องหมายแก้ไขแล้ว
@@ -2401,6 +2656,9 @@ function renderIssuesList() {
                     ` : ''}
                     <button class="btn" style="font-size: 0.75rem; padding: 0.35rem 0.5rem; width: auto; background: var(--bg-tertiary);" onclick="replyIssue('${issue.id}')">
                         <i class="fa-solid fa-reply"></i> ${issue.reply ? 'แก้ไขคำตอบ' : 'ตอบกลับผู้แจ้ง'}
+                    </button>
+                    <button class="btn btn-danger" style="font-size: 0.75rem; padding: 0.35rem 0.5rem; width: auto; background: var(--accent-danger); color: white;" onclick="deleteIssue('${issue.id}')">
+                        <i class="fa-solid fa-trash-can"></i> ลบคำร้อง
                     </button>
                 </div>
             `;
@@ -2475,8 +2733,10 @@ function replyIssue(issueId) {
 // ========== ADMIN: MEMBER MANAGEMENT SYSTEM ==========
 function renderAdminMembersList() {
     const list = document.getElementById('admin-members-list');
+    const mobileList = document.getElementById('admin-members-mobile-list');
     if (!list) return;
     list.innerHTML = '';
+    if (mobileList) mobileList.innerHTML = '';
     
     // ค้นหารายชื่อจากช่อง input ค้นหาสมาชิก
     const searchInput = document.getElementById('admin-member-search');
@@ -2505,7 +2765,16 @@ function renderAdminMembersList() {
         return nameA.localeCompare(nameB, 'th');
     });
     
+    if (sortedMembers.length === 0) {
+        list.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">ไม่พบรายชื่อสมาชิกตามเงื่อนไข</td></tr>`;
+        if (mobileList) {
+            mobileList.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem;">ไม่พบรายชื่อสมาชิกตามเงื่อนไข</div>`;
+        }
+        return;
+    }
+    
     sortedMembers.forEach(m => {
+        // 1. Desktop Row
         const row = document.createElement('tr');
         row.style.borderBottom = '1px solid var(--border-color)';
         row.innerHTML = `
@@ -2522,6 +2791,33 @@ function renderAdminMembersList() {
             </td>
         `;
         list.appendChild(row);
+
+        // 2. Mobile Card Item
+        if (mobileList) {
+            const card = document.createElement('div');
+            card.className = 'member-card-item';
+            
+            const initial = (m.firstName ? m.firstName.charAt(0) : 'M');
+            
+            card.innerHTML = `
+                <div class="member-card-left">
+                    <div class="member-card-avatar">${initial}</div>
+                    <div class="member-card-info">
+                        <div class="member-card-name">${m.firstName} ${m.lastName}</div>
+                        <div class="member-card-meta">รหัส: ${m.id} | ห้อง: ${m.room || '5/8'}</div>
+                    </div>
+                </div>
+                <div class="member-card-actions">
+                    <button class="btn" style="background: var(--accent-primary); color: white;" onclick="startEditMember('${m.id}')">
+                        <i class="fa-solid fa-edit"></i> แก้ไข
+                    </button>
+                    <button class="btn" style="background: var(--accent-danger); color: white;" onclick="deleteMember('${m.id}')">
+                        <i class="fa-solid fa-trash-can"></i> ลบ
+                    </button>
+                </div>
+            `;
+            mobileList.appendChild(card);
+        }
     });
 }
 
@@ -2595,6 +2891,14 @@ function handleSaveMember(event) {
     }
     
     // บันทึก Log
+    state.membersLastUpdated = Date.now();
+    saveToLocalStorage();
+
+    showLoader("กำลังบันทึกข้อมูลสมาชิก...", "ระบบกำลังบันทึกข้อมูลสมาชิกและประวัติลง Firebase...");
+    const promises = [
+        syncItemToFirebase('settings', 'members', { list: state.members, lastUpdated: state.membersLastUpdated })
+    ];
+
     if (logMsg) {
         const newLog = {
             id: 'log-' + Date.now(),
@@ -2604,15 +2908,19 @@ function handleSaveMember(event) {
             actor: state.user ? state.user.name : 'ระบบ'
         };
         state.logs.push(newLog);
-        syncItemToFirebase('logs', newLog.id, newLog);
+        promises.push(syncItemToFirebase('logs', newLog.id, newLog));
     }
     
-    saveToLocalStorage();
-    syncItemToFirebase('settings', 'members', { list: state.members });
-    
-    renderAdminMembersList();
-    cancelEditMember();
-    showCustomAlert('บันทึกข้อมูลสมาชิกเรียบร้อย!');
+    Promise.all(promises).then(() => {
+        renderAdminMembersList();
+        cancelEditMember();
+        hideLoader();
+        showCustomAlert('บันทึกข้อมูลสมาชิกเรียบร้อย!');
+    }).catch(err => {
+        console.error("Member sync failure:", err);
+        hideLoader();
+        showCustomAlert("บันทึกลงฐานข้อมูลไม่สำเร็จ: " + err.message, "error");
+    });
 }
 
 function deleteMember(id) {
@@ -2634,12 +2942,587 @@ function deleteMember(id) {
             actor: state.user ? state.user.name : 'ระบบ'
         };
         state.logs.push(newLog);
-        syncItemToFirebase('logs', newLog.id, newLog);
-        
+        state.membersLastUpdated = Date.now();
         saveToLocalStorage();
-        syncItemToFirebase('settings', 'members', { list: state.members });
         
-        renderAdminMembersList();
-        showCustomAlert('ลบรายชื่อสมาชิกเรียบร้อย!');
+        showLoader("กำลังลบข้อมูลสมาชิก...", "ระบบกำลังซิงก์ประวัติการลบและรายชื่อสมาชิกลง Firebase...");
+        const p1 = syncItemToFirebase('logs', newLog.id, newLog);
+        const p2 = syncItemToFirebase('settings', 'members', { list: state.members, lastUpdated: state.membersLastUpdated });
+        
+        Promise.all([p1, p2]).then(() => {
+            renderAdminMembersList();
+            hideLoader();
+            showCustomAlert('ลบรายชื่อสมาชิกเรียบร้อย!');
+        }).catch(err => {
+            console.error("Member delete sync failure:", err);
+            hideLoader();
+            showCustomAlert("ลบข้อมูลไม่สำเร็จ: " + err.message, "error");
+        });
     });
+}
+
+// ==========================================
+// ACCOUNTS LEDGER SYSTEM (Cash vs Bank)
+// ==========================================
+
+function renderTransactionsView() {
+    if (!state.transactions) state.transactions = [];
+    if (state.initialCash === undefined) state.initialCash = 0;
+    if (state.initialBank === undefined) state.initialBank = 0;
+    
+    const cashIn = state.transactions.filter(t => t.type === 'income' && t.wallet === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
+    const cashOut = state.transactions.filter(t => t.type === 'expense' && t.wallet === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
+    const cashBalance = state.initialCash + cashIn - cashOut;
+
+    const bankIn = state.transactions.filter(t => t.type === 'income' && t.wallet === 'bank').reduce((acc, curr) => acc + curr.amount, 0);
+    const bankOut = state.transactions.filter(t => t.type === 'expense' && t.wallet === 'bank').reduce((acc, curr) => acc + curr.amount, 0);
+    const bankBalance = state.initialBank + bankIn - bankOut;
+
+    const overallBalance = cashBalance + bankBalance;
+
+    const cashInEl = document.getElementById('acc-metric-cash-in');
+    const cashOutEl = document.getElementById('acc-metric-cash-out');
+    const cashBalEl = document.getElementById('acc-metric-cash-balance');
+    const bankInEl = document.getElementById('acc-metric-bank-in');
+    const bankOutEl = document.getElementById('acc-metric-bank-out');
+    const bankBalEl = document.getElementById('acc-metric-bank-balance');
+    const overBalEl = document.getElementById('acc-metric-overall-balance');
+
+    if (cashInEl) cashInEl.textContent = formatCurrency(cashIn);
+    if (cashOutEl) cashOutEl.textContent = formatCurrency(cashOut);
+    if (cashBalEl) cashBalEl.textContent = formatCurrency(cashBalance);
+
+    if (bankInEl) bankInEl.textContent = formatCurrency(bankIn);
+    if (bankOutEl) bankOutEl.textContent = formatCurrency(bankOut);
+    if (bankBalEl) bankBalEl.textContent = formatCurrency(bankBalance);
+
+    if (overBalEl) overBalEl.textContent = formatCurrency(overallBalance);
+
+    const initCashInput = document.getElementById('acc-init-cash');
+    const initBankInput = document.getElementById('acc-init-bank');
+    if (initCashInput && document.activeElement !== initCashInput) {
+        initCashInput.value = state.initialCash || '';
+    }
+    if (initBankInput && document.activeElement !== initBankInput) {
+        initBankInput.value = state.initialBank || '';
+    }
+}
+
+function renderTransactionsList() {
+    const container = document.getElementById('acc-transactions-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const searchVal = document.getElementById('acc-tx-search').value.toLowerCase().trim();
+    const filterWallet = document.getElementById('acc-tx-filter-wallet').value;
+
+    let list = [...state.transactions];
+    
+    list.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (filterWallet !== 'all') {
+        list = list.filter(t => t.wallet === filterWallet);
+    }
+    if (searchVal) {
+        list = list.filter(t => t.desc.toLowerCase().includes(searchVal));
+    }
+
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:3rem; color:var(--text-muted); border:1px dashed var(--border-color); border-radius:1rem; width:100%;">
+                <i class="fa-solid fa-receipt" style="font-size:2.5rem; margin-bottom:1rem; opacity:0.3;"></i>
+                <p>ไม่พบรายการเดินบัญชี</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'ledger-item';
+        
+        let formattedDate = t.date;
+        try {
+            const d = new Date(t.date);
+            formattedDate = d.toLocaleDateString('th-TH');
+        } catch(e) {}
+
+        const isIncome = t.type === 'income';
+        const iconClass = isIncome ? 'income' : 'expense';
+        const iconMarkup = isIncome 
+            ? '<i class="fa-solid fa-arrow-up"></i>' 
+            : '<i class="fa-solid fa-arrow-down"></i>';
+
+        const walletDisplay = t.wallet === 'cash'
+            ? '💵 เงินสด'
+            : '🏦 เงินโอนผ่านบัญชี';
+
+        const amountDisplay = isIncome
+            ? `+฿${t.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
+            : `-฿${t.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
+
+        const amountClass = isIncome ? 'income' : 'expense';
+
+        item.innerHTML = `
+            <div class="ledger-left">
+                <div class="ledger-icon ${iconClass}">
+                    ${iconMarkup}
+                </div>
+                <div class="ledger-info">
+                    <div class="ledger-desc">${t.desc}</div>
+                    <div class="ledger-meta">
+                        <span>📅 ${formattedDate}</span>
+                        <span>|</span>
+                        <span>${walletDisplay}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="ledger-right">
+                <div class="ledger-amount ${amountClass}">
+                    ${amountDisplay}
+                </div>
+                <div class="ledger-actions">
+                    <button type="button" class="btn" style="min-height:auto; width:auto; display:inline-flex; padding:0.4rem 0.6rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); font-size:0.75rem;" onclick="editTransaction('${t.id}')">
+                        <i class="fa-solid fa-pen"></i> แก้ไข
+                    </button>
+                    <button type="button" class="btn" style="min-height:auto; width:auto; display:inline-flex; padding:0.4rem 0.6rem; background:rgba(239,68,68,0.1); border:1px solid var(--accent-danger); color:var(--accent-danger); font-size:0.75rem;" onclick="deleteTransaction('${t.id}')">
+                        <i class="fa-solid fa-trash-can"></i> ลบ
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function handleSaveTransaction(e) {
+    e.preventDefault();
+    if (!state.user || state.user.role !== 'president') {
+        showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่มีสิทธิ์บันทึกได้");
+        return;
+    }
+
+    const txId = document.getElementById('acc-tx-id').value;
+    const type = document.getElementById('acc-tx-type').value;
+    const wallet = document.getElementById('acc-tx-wallet').value;
+    const amount = parseFloat(document.getElementById('acc-tx-amount').value);
+    const date = document.getElementById('acc-tx-date').value;
+    const desc = document.getElementById('acc-tx-desc').value.trim();
+
+    if (!amount || amount <= 0 || !date || !desc) {
+        showCustomAlert("กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง");
+        return;
+    }
+
+    let txObj = {};
+    let isEdit = false;
+
+    if (txId) {
+        const existingTx = state.transactions.find(t => t.id === txId);
+        if (!existingTx) return;
+        
+        isEdit = true;
+        txObj = {
+            ...existingTx,
+            type,
+            wallet,
+            amount,
+            date,
+            desc,
+            _synced: false
+        };
+        
+        const idx = state.transactions.findIndex(t => t.id === txId);
+        state.transactions[idx] = txObj;
+    } else {
+        txObj = {
+            id: 'tx-' + Date.now(),
+            type,
+            wallet,
+            amount,
+            date,
+            desc,
+            _synced: false
+        };
+        state.transactions.push(txObj);
+    }
+
+    saveToLocalStorage();
+    
+    const logMsg = isEdit 
+        ? `แก้ไขรายการบัญชีแยกประเภท: "${desc}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${type === 'income' ? 'รายรับ' : 'รายจ่าย'} - ${wallet === 'cash' ? 'เงินสด' : 'เงินโอน'})`
+        : `บันทึกรายการบัญชีแยกประเภท: "${desc}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${type === 'income' ? 'รายรับ' : 'รายจ่าย'} - ${wallet === 'cash' ? 'เงินสด' : 'เงินโอน'})`;
+    
+    const newLog = {
+        id: 'log-' + Date.now(),
+        date: new Date().toISOString(),
+        type: type === 'income' ? 'income' : 'reject',
+        actor: state.user.name,
+        desc: logMsg,
+        _synced: false
+    };
+    state.logs.push(newLog);
+    saveToLocalStorage();
+
+    showLoader("กำลังบันทึกรายการบัญชี...", "ระบบกำลังบันทึกข้อมูลธุรกรรมและประวัติลง Firebase...");
+    const p1 = syncItemToFirebase('transactions', txObj.id, txObj);
+    const p2 = syncItemToFirebase('logs', newLog.id, newLog);
+    
+    Promise.all([p1, p2]).then(() => {
+        renderTransactionsView();
+        renderTransactionsList();
+        cancelEditTransaction();
+        hideLoader();
+        showCustomAlert("บันทึกรายการรายรับ-รายจ่ายสำเร็จ!", "success");
+    }).catch(err => {
+        console.error("Transaction sync failure:", err);
+        hideLoader();
+        showCustomAlert("บันทึกลงฐานข้อมูลไม่สำเร็จ: " + err.message, "error");
+    });
+}
+
+function editTransaction(txId) {
+    const tx = state.transactions.find(t => t.id === txId);
+    if (!tx) return;
+
+    document.getElementById('acc-tx-id').value = tx.id;
+    document.getElementById('acc-tx-type').value = tx.type;
+    document.getElementById('acc-tx-wallet').value = tx.wallet;
+    document.getElementById('acc-tx-amount').value = tx.amount;
+    document.getElementById('acc-tx-date').value = tx.date;
+    document.getElementById('acc-tx-desc').value = tx.desc;
+
+    document.getElementById('acc-form-title').innerHTML = `<i class="fa-solid fa-edit"></i> แก้ไขรายการเดินบัญชี`;
+    document.getElementById('btn-save-tx').innerHTML = `<i class="fa-solid fa-save"></i> บันทึกการแก้ไข`;
+    document.getElementById('btn-cancel-edit-tx').style.display = 'inline-flex';
+
+    // Auto-scroll to form on mobile/desktop
+    const form = document.getElementById('acc-transaction-form');
+    if (form) {
+        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function cancelEditTransaction() {
+    document.getElementById('acc-transaction-form').reset();
+    document.getElementById('acc-tx-id').value = '';
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('acc-tx-date').value = today;
+
+    document.getElementById('acc-form-title').innerHTML = `<i class="fa-solid fa-file-invoice-dollar"></i> บันทึกรายรับ-รายจ่าย`;
+    document.getElementById('btn-save-tx').innerHTML = `<i class="fa-solid fa-save"></i> บันทึกรายการ`;
+    document.getElementById('btn-cancel-edit-tx').style.display = 'none';
+}
+
+function deleteTransaction(txId) {
+    const tx = state.transactions.find(t => t.id === txId);
+    if (!tx) return;
+
+    showCustomConfirm(`⚠️ คุณต้องการลบรายการ "${tx.desc}" ยอดเงิน ฿${tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จริงหรือไม่?`, (confirmed) => {
+        if (!confirmed) return;
+
+        state.transactions = state.transactions.filter(t => t.id !== txId);
+        state.membersLastUpdated = Date.now();
+        saveToLocalStorage();
+
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: 'member_delete',
+            actor: state.user.name,
+            desc: `ลบรายการบัญชีแยกประเภท: "${tx.desc}" ยอดเงิน ฿${tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+            _synced: false
+        };
+        state.logs.push(newLog);
+        saveToLocalStorage();
+
+        showLoader("กำลังลบรายการบัญชี...", "ระบบกำลังลบข้อมูลและซิงก์ประวัติลง Firebase...");
+        const p1 = (useFirebase && db) ? db.collection('transactions').doc(txId).delete() : Promise.resolve();
+        const p2 = syncItemToFirebase('logs', newLog.id, newLog);
+
+        Promise.all([p1, p2]).then(() => {
+            renderTransactionsView();
+            renderTransactionsList();
+            hideLoader();
+            showCustomAlert("ลบรายการเรียบร้อยแล้ว!", "success");
+        }).catch(err => {
+            console.error("Transaction delete sync failure:", err);
+            hideLoader();
+            showCustomAlert("ลบรายการไม่สำเร็จ: " + err.message, "error");
+        });
+    });
+}
+
+// Handle Initial Balance Save form submission
+function handleSaveInitialBalances(e) {
+    e.preventDefault();
+    if (!state.user || state.user.role !== 'president') {
+        showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่มีสิทธิ์แก้ไขได้");
+        return;
+    }
+
+    const cash = parseFloat(document.getElementById('acc-init-cash').value) || 0;
+    const bank = parseFloat(document.getElementById('acc-init-bank').value) || 0;
+
+    state.initialCash = cash;
+    state.initialBank = bank;
+    state.initialBalancesLastUpdated = Date.now();
+
+    saveToLocalStorage();
+
+    const newLog = {
+        id: 'log-' + Date.now(),
+        date: new Date().toISOString(),
+        type: 'income',
+        actor: state.user.name,
+        desc: `ปรับยอดเงินสดตั้งต้นเป็น ฿${cash.toLocaleString('th-TH')} และเงินในบัญชีตั้งต้นเป็น ฿${bank.toLocaleString('th-TH')}`,
+        _synced: false
+    };
+    state.logs.push(newLog);
+    saveToLocalStorage();
+
+    showLoader("กำลังบันทึกยอดเงินตั้งต้น...", "ระบบกำลังบันทึกยอดเงินตั้งต้นและประวัติลง Firebase...");
+    const p1 = syncItemToFirebase('settings', 'initial_balances', { cash, bank, lastUpdated: state.initialBalancesLastUpdated });
+    const p2 = syncItemToFirebase('logs', newLog.id, newLog);
+    
+    Promise.all([p1, p2]).then(() => {
+        renderTransactionsView();
+        hideLoader();
+        showCustomAlert("บันทึกยอดเงินตั้งต้นสำเร็จ!", "success");
+    }).catch(err => {
+        console.error("Initial balance sync failure:", err);
+        hideLoader();
+        showCustomAlert("บันทึกยอดเงินตั้งต้นไม่สำเร็จ: " + err.message, "error");
+    });
+}
+
+// Migrate existing incomes & approved requests into transactions ledger
+function migrateOldDataToTransactions() {
+    if (!state.transactions) state.transactions = [];
+    let modified = false;
+
+    // 1. Migrate Incomes
+    if (state.incomes) {
+        state.incomes.forEach(inc => {
+            const txId = 'tx-inc-' + inc.id;
+            const exists = state.transactions.some(t => t.id === txId);
+            if (!exists) {
+                const txObj = {
+                    id: txId,
+                    type: 'income',
+                    wallet: 'bank', // Default past incomes to bank transfer
+                    amount: inc.amount || 0,
+                    date: inc.date ? new Date(inc.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    desc: inc.desc || inc.description || 'รายรับเงินกองกลางสีชมพู',
+                    _synced: false
+                };
+                state.transactions.push(txObj);
+                modified = true;
+                syncItemToFirebase('transactions', txObj.id, txObj);
+            }
+        });
+    }
+
+    // 2. Migrate Approved Requests (Expenses)
+    if (state.requests) {
+        state.requests.forEach(req => {
+            if (req.status === 'approved') {
+                const txId = 'tx-exp-' + req.id;
+                const exists = state.transactions.some(t => t.id === txId);
+                if (!exists) {
+                    const txObj = {
+                        id: txId,
+                        type: 'expense',
+                        wallet: 'bank', // Reimbursements are always bank transfers
+                        amount: req.amount || 0,
+                        date: req.date ? new Date(req.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                        desc: `เบิกจ่าย: ${req.name} (${req.item})`,
+                        _synced: false
+                    };
+                    state.transactions.push(txObj);
+                    modified = true;
+                    syncItemToFirebase('transactions', txObj.id, txObj);
+                }
+            }
+        });
+    }
+
+    // 3. Clean up deleted/unapproved items
+    state.transactions = state.transactions.filter(t => {
+        if (t.id.startsWith('tx-inc-')) {
+            const incId = t.id.replace('tx-inc-', '');
+            const exists = state.incomes.some(inc => inc.id === incId);
+            if (!exists) {
+                modified = true;
+                if (useFirebase && db) {
+                    db.collection('transactions').doc(t.id).delete()
+                        .catch(err => console.error("Error deleting orphaned tx:", err));
+                }
+                return false;
+            }
+        }
+        if (t.id.startsWith('tx-exp-')) {
+            const reqId = t.id.replace('tx-exp-', '');
+            const req = state.requests.find(r => r.id === reqId);
+            const existsAndApproved = req && req.status === 'approved';
+            if (!existsAndApproved) {
+                modified = true;
+                if (useFirebase && db) {
+                    db.collection('transactions').doc(t.id).delete()
+                        .catch(err => console.error("Error deleting orphaned tx:", err));
+                }
+                return false;
+            }
+        }
+        return true;
+    });
+
+    if (modified) {
+        saveToLocalStorage();
+        renderTransactionsView();
+        renderTransactionsList();
+        console.log("Transactions ledger synced/migrated successfully.");
+    }
+}
+
+// Update Splash Screen loader fill progress
+function updateSplashProgress(percent, statusText) {
+    const fill = document.getElementById('splash-loader-fill');
+    const status = document.getElementById('splash-status');
+    if (fill) fill.style.width = percent + '%';
+    if (status && statusText) status.textContent = statusText;
+    
+    if (percent >= 100) {
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.classList.add('fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 500);
+            }
+        }, 1200);
+    }
+}
+
+// Delete an individual reported issue
+function deleteIssue(issueId) {
+    if (!state.user || state.user.role !== 'president') {
+        showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่ลบได้");
+        return;
+    }
+
+    showCustomConfirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบคำแจ้งปัญหานี้ออกจากระบบ?", (confirmed) => {
+        if (!confirmed) return;
+
+        state.issues = state.issues.filter(i => i.id !== issueId);
+        saveToLocalStorage();
+        renderIssuesList();
+
+        if (useFirebase && db) {
+            db.collection('issues').doc(issueId).delete()
+                .then(() => console.log("Deleted issue doc:", issueId))
+                .catch(err => console.error("Error deleting issue doc:", err));
+        }
+
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: 'member_delete',
+            actor: state.user.name,
+            desc: `ลบรายงานปัญหาออกจากระบบ: (ID: ${issueId})`,
+            _synced: false
+        };
+        state.logs.push(newLog);
+        saveToLocalStorage();
+        syncItemToFirebase('logs', newLog.id, newLog);
+
+        showCustomAlert("ลบคำแจ้งปัญหาเรียบร้อยแล้ว!", "success");
+    });
+}
+
+// Delete all reported issues history
+function deleteAllIssues() {
+    if (!state.user || state.user.role !== 'president') {
+        showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่ลบได้");
+        return;
+    }
+
+    showCustomConfirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบประวัติการแจ้งปัญหาและข้อเสนอแนะทั้งหมดออกจากระบบ? การกระทำนี้ไม่สามารถกู้คืนได้!", (confirmed) => {
+        if (!confirmed) return;
+
+        const idsToDelete = state.issues.map(i => i.id);
+        state.issues = [];
+        saveToLocalStorage();
+        renderIssuesList();
+
+        if (useFirebase && db) {
+            idsToDelete.forEach(id => {
+                db.collection('issues').doc(id).delete()
+                    .catch(err => console.error("Error batch deleting issue:", err));
+            });
+        }
+
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: 'member_delete',
+            actor: state.user.name,
+            desc: `ลบประวัติการแจ้งปัญหาทั้งหมดออกจากระบบ (${idsToDelete.length} รายการ)`,
+            _synced: false
+        };
+        state.logs.push(newLog);
+        saveToLocalStorage();
+        syncItemToFirebase('logs', newLog.id, newLog);
+
+        showCustomAlert("ลบประวัติการแจ้งปัญหาทั้งหมดเรียบร้อยแล้ว!", "success");
+    });
+}
+
+// Control left/right tab scroll indicators on mobile
+function initTabScrollIndicators() {
+    // Wait for DOM to settle
+    setTimeout(() => {
+        const tabNav = document.querySelector('.tab-navigation');
+        const indRight = document.querySelector('.tab-scroll-indicator.right');
+        const indLeft = document.querySelector('.tab-scroll-indicator.left');
+        
+        if (!tabNav) return;
+
+        const updateIndicators = () => {
+            // Only show indicator if screen size is mobile/tablet (width <= 768px)
+            if (window.innerWidth > 768) {
+                if (indLeft) indLeft.style.display = 'none';
+                if (indRight) indRight.style.display = 'none';
+                return;
+            }
+
+            const scrollLeft = Math.ceil(tabNav.scrollLeft);
+            const maxScroll = tabNav.scrollWidth - tabNav.clientWidth;
+            
+            if (indLeft) {
+                indLeft.style.display = (scrollLeft > 10) ? 'flex' : 'none';
+            }
+            if (indRight) {
+                // If maxScroll is 0 or less, it means the tab bar is not scrollable/overflowing
+                indRight.style.display = (maxScroll > 0 && scrollLeft < maxScroll - 10) ? 'flex' : 'none';
+            }
+        };
+
+        tabNav.addEventListener('scroll', updateIndicators);
+        window.addEventListener('resize', updateIndicators);
+        
+        // Trigger indicators update on tab clicks too to handle focus shifts
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                setTimeout(updateIndicators, 150);
+            });
+        });
+
+        // Run once on init
+        updateIndicators();
+    }, 400);
 }
