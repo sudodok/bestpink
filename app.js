@@ -171,7 +171,7 @@ function renderSuggestions(members) {
                     transition: background 0.15s; font-size: 0.9rem;"
              onmouseover="this.style.background='var(--accent-primary-alpha, rgba(236,72,153,0.12))'"
              onmouseout="this.style.background='transparent'">
-            <span style="color: var(--text-primary); font-weight: 600;">${m.firstName} ${m.lastName} (${m.room || '5/8'})</span>
+            <span style="color: var(--text-primary); font-weight: 600;">${escapeHTML(m.firstName)} ${escapeHTML(m.lastName)} (${escapeHTML(m.room || '5/8')})</span>
         </div>
     `).join('');
 }
@@ -212,6 +212,17 @@ function hideLoader() {
             loader.style.display = 'none';
         }, 500);
     }
+}
+
+// Helper: Escape HTML strings to prevent XSS injections
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 // Helper: Format currency
@@ -1175,19 +1186,75 @@ window.addEventListener('DOMContentLoaded', () => {
     // Load local database data first before resolving session & fetching firebase
     updateSplashProgress(20, 'กำลังเปิดหน่วยความจำในเครื่อง...');
     loadLocalData(() => {
-        // Render UI immediately using local data
+        // Render UI immediately using local data for instant load feeling
         updateSplashProgress(50, 'ดึงประวัติการเงินส่วนท้องถิ่น...');
         checkSession();
         migrateOldDataToTransactions();
         
-        // Then start loading Firebase in the background
-        updateSplashProgress(75, 'กำลังเชื่อมต่อฐานข้อมูลคลาวด์...');
-        loadFromDatabase(() => {
-            // Once Firebase finishes loading, re-run checkSession to update everything
-            updateSplashProgress(100, 'ซิงก์ข้อมูลคลาวด์สำเร็จ!');
-            checkSession();
-            migrateOldDataToTransactions();
-        });
+        // Start loading Firebase Auth State
+        updateSplashProgress(75, 'กำลังเปิดการเชื่อมต่อที่ปลอดภัย...');
+        
+        if (useFirebase && typeof firebase !== 'undefined' && firebase.auth) {
+            let isFirstAuthCheck = true;
+            firebase.auth().onAuthStateChanged(firebaseUser => {
+                if (firebaseUser) {
+                    if (firebaseUser.isAnonymous) {
+                        // Anonymous session (Member)
+                        if (state.user && state.user.role === 'purchaser') {
+                            loadFromDatabase(() => {
+                                checkSession();
+                                if (isFirstAuthCheck) {
+                                    updateSplashProgress(100, 'ซิงก์ข้อมูลคลาวด์สำเร็จ!');
+                                    isFirstAuthCheck = false;
+                                }
+                            });
+                        } else {
+                            // Local session missing or mismatch, force clean auth state
+                            firebase.auth().signOut();
+                        }
+                    } else {
+                        // Admin/President session
+                        db.collection('users').doc(firebaseUser.uid).get().then(doc => {
+                            if (doc.exists) {
+                                const userData = doc.data();
+                                state.user = {
+                                    uid: doc.id,
+                                    username: userData.username,
+                                    name: userData.name,
+                                    department: userData.department || null,
+                                    role: userData.role
+                                };
+                                saveToLocalStorage();
+                                loadFromDatabase(() => {
+                                    checkSession();
+                                    if (isFirstAuthCheck) {
+                                        updateSplashProgress(100, 'เข้าสู่ระบบสำเร็จ!');
+                                        isFirstAuthCheck = false;
+                                    }
+                                });
+                            } else {
+                                firebase.auth().signOut();
+                            }
+                        }).catch(err => {
+                            console.error("Auth state profile fetch failure:", err);
+                            firebase.auth().signOut();
+                        });
+                    }
+                } else {
+                    // Not signed in
+                    state.user = null;
+                    saveToLocalStorage();
+                    checkSession();
+                    if (isFirstAuthCheck) {
+                        updateSplashProgress(100, 'กรุณาเข้าสู่ระบบ');
+                        isFirstAuthCheck = false;
+                    }
+                }
+            });
+        } else {
+            // Offline fallback
+            updateSplashProgress(100, 'โหมดออฟไลน์ใช้งานได้แล้ว');
+        }
     });
 });
 
@@ -1401,16 +1468,29 @@ function handleMemberLogin(event) {
 
     codeError.style.display = 'none';
 
-    state.user = {
-        id: memberId,
-        name: name,
-        department: dept,
-        role: 'purchaser'
-    };
+    showLoader("กำลังเข้าสู่ระบบ...", "กำลังยืนยันเซสชันสมาชิกกับ Firebase...");
 
-    saveToLocalStorage();
-    checkSession();
-    switchTab('request-view');
+    firebase.auth().signInAnonymously()
+        .then(() => {
+            state.user = {
+                id: memberId,
+                name: name,
+                department: dept,
+                role: 'purchaser'
+            };
+            saveToLocalStorage();
+            
+            loadFromDatabase(() => {
+                checkSession();
+                hideLoader();
+                switchTab('request-view');
+            });
+        })
+        .catch(err => {
+            console.error("Anonymous authentication failure:", err);
+            hideLoader();
+            showCustomAlert("เชื่อมต่อระบบล็อกอินล้มเหลว: " + err.message, "error");
+        });
 }
 
 
@@ -1421,43 +1501,78 @@ function handlePresidentLogin(event) {
     const pass = document.getElementById('login-pres-pass').value.trim();
     const errorMsg = document.getElementById('login-error-msg');
     
-    if (
-        (user === 'Aom' && pass === 'Aom456789') || 
-        (user === 'km789' && pass === 'Q32544') ||
-        (user === 'admin' && pass === 'adminnaja123')
-    ) {
-        errorMsg.style.display = 'none';
-        
-        const displayName = user === 'admin'
-            ? 'ผู้ดูแลระบบ'
-            : (user === 'km789' ? 'รองประธานสวัสดิการ' : 'ประธานสวัสดิการ');
-            
-        state.user = {
-            username: user,
-            name: displayName,
-            department: null,
-            role: 'president'
-        };
-        
-        saveToLocalStorage();
-        checkSession();
-        
-        // Open pending tab by default
-        switchTab('pending-view');
-    } else {
-        errorMsg.style.display = 'block';
+    if (!user || !pass) {
+        showCustomAlert("กรุณากรอกผู้ใช้งานและรหัสผ่าน");
+        return;
     }
+
+    const email = `${user.toLowerCase()}@bestpink.com`;
+    
+    showLoader("กำลังตรวจสอบสิทธิ์...", "ระบบกำลังตรวจสอบรหัสผ่านและสิทธิ์บนคลาวด์...");
+    
+    firebase.auth().signInWithEmailAndPassword(email, pass)
+        .then(userCredential => {
+            const uid = userCredential.user.uid;
+            return db.collection('users').doc(uid).get();
+        })
+        .then(doc => {
+            if (doc.exists) {
+                const userData = doc.data();
+                errorMsg.style.display = 'none';
+                
+                state.user = {
+                    uid: doc.id,
+                    username: userData.username,
+                    name: userData.name,
+                    department: userData.department || null,
+                    role: userData.role
+                };
+                saveToLocalStorage();
+                
+                loadFromDatabase(() => {
+                    checkSession();
+                    hideLoader();
+                    switchTab('pending-view');
+                });
+            } else {
+                firebase.auth().signOut().then(() => {
+                    hideLoader();
+                    errorMsg.textContent = "❌ บัญชีนี้ไม่มีสิทธิ์เป็นผู้ดูแลระบบในสีชมพู";
+                    errorMsg.style.display = 'block';
+                });
+            }
+        })
+        .catch(err => {
+            console.error("Administrative Auth failed:", err);
+            hideLoader();
+            errorMsg.textContent = "❌ รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง";
+            errorMsg.style.display = 'block';
+        });
 }
 
 // Handle Logout
 function handleLogout() {
-    state.user = null;
-    saveToLocalStorage();
-    checkSession();
-    
-    // Clear forms
-    document.getElementById('member-login-form').reset();
-    document.getElementById('president-login-form').reset();
+    showLoader("กำลังออกจากระบบ...", "กรุณารอสักครู่...");
+    const signOutPromise = (useFirebase && typeof firebase !== 'undefined' && firebase.auth)
+        ? firebase.auth().signOut()
+        : Promise.resolve();
+
+    signOutPromise.then(() => {
+        state.user = null;
+        saveToLocalStorage();
+        checkSession();
+        
+        // Clear forms
+        document.getElementById('member-login-form').reset();
+        document.getElementById('president-login-form').reset();
+        hideLoader();
+    }).catch(err => {
+        console.error("Signout error:", err);
+        state.user = null;
+        saveToLocalStorage();
+        checkSession();
+        hideLoader();
+    });
 }
 
 // Toggle Password Visibility
@@ -1668,7 +1783,7 @@ function renderRecentTransactions() {
         tr.innerHTML = `
             <td style="font-size: 0.8rem; color: var(--text-muted);">${formatDateTime(tx.date)}</td>
             <td>
-                <div style="font-weight: 500;">${tx.desc}</div>
+                <div style="font-weight: 500;">${escapeHTML(tx.desc)}</div>
                 <div style="font-size:0.7rem; color:var(--text-muted);">${tx.type === 'income' ? 'นำเข้าคลังสี' : 'เบิกจ่ายคืนสมาชิก'}</div>
             </td>
             <td class="amount-col" style="font-weight: 600; color: ${amountColor}">${amountPrefix}${formatCurrency(tx.amount)}</td>
@@ -1867,10 +1982,10 @@ function renderLogsList() {
         
         item.innerHTML = `
             <div class="log-time"><i class="fa-solid fa-clock"></i> ${formatDateTime(log.date)}</div>
-            <div class="log-desc">${displayDesc}</div>
+            <div class="log-desc">${escapeHTML(displayDesc)}</div>
             ${imageRowMarkup}
             <div class="log-actor">
-                <span>บันทึกโดย: ${log.actor}</span>
+                <span>บันทึกโดย: ${escapeHTML(log.actor)}</span>
                 <span class="badge badge-${log.type === 'approve' ? 'approved' : log.type === 'reject' ? 'rejected' : 'pending'}">${log.type.toUpperCase()}</span>
             </div>
         `;
@@ -2488,8 +2603,8 @@ function renderMemberHistory() {
         } else if (req.status === 'approved') {
             statusBadge = `<span class="badge badge-approved">โอนเงินสำเร็จ</span>`;
         } else {
-            statusBadge = `<span class="badge badge-rejected" title="${req.rejectReason}">ปฏิเสธ (ชี้เพื่อดูเหตุผล)</span>
-                           <div style="font-size:0.75rem; color:var(--accent-danger); margin-top:2px;">เหตุผล: ${req.rejectReason}</div>`;
+            statusBadge = `<span class="badge badge-rejected" title="${escapeHTML(req.rejectReason)}">ปฏิเสธ (ชี้เพื่อดูเหตุผล)</span>
+                           <div style="font-size:0.75rem; color:var(--accent-danger); margin-top:2px;">เหตุผล: ${escapeHTML(req.rejectReason)}</div>`;
         }
         
         let slipCell = `<span style="color:var(--text-muted);">—</span>`;
@@ -2501,8 +2616,8 @@ function renderMemberHistory() {
         tr.innerHTML = `
             <td style="font-size: 0.8rem; color: var(--text-muted);">${formatDateTime(req.date)}</td>
             <td>
-                <div style="font-weight: 500;">[${getDeptDisplayName(req.department)}] ${req.item}</div>
-                ${req.memo ? `<div style="font-size:0.75rem; color:var(--text-secondary);">หมายเหตุ: ${req.memo}</div>` : ''}
+                <div style="font-weight: 500;">[${getDeptDisplayName(req.department)}] ${escapeHTML(req.item)}</div>
+                ${req.memo ? `<div style="font-size:0.75rem; color:var(--text-secondary);">หมายเหตุ: ${escapeHTML(req.memo)}</div>` : ''}
             </td>
             <td class="amount-col" style="font-weight: 600;">${formatCurrency(req.amount)}</td>
             <td>${statusBadge}</td>
@@ -2666,24 +2781,24 @@ function renderIssuesList() {
         
         let replyHtml = issue.reply 
             ? `<div class="issue-reply-box">
-                <strong>✍️ ประธานตอบกลับ:</strong> ${issue.reply}
+                <strong>✍️ ประธานตอบกลับ:</strong> ${escapeHTML(issue.reply)}
                </div>`
             : '';
             
         card.innerHTML = `
             <div class="issue-header">
                 <div>
-                    <span class="issue-title-text">${issue.title}</span>
+                    <span class="issue-title-text">${escapeHTML(issue.title)}</span>
                     <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
                         หมวดหมู่: ${categoryNames[issue.category] || issue.category}
                     </div>
                 </div>
                 ${statusBadge}
             </div>
-            <div class="issue-body-text">${issue.desc}</div>
+            <div class="issue-body-text">${escapeHTML(issue.desc)}</div>
             ${replyHtml}
             <div class="issue-footer">
-                <span>โดย: ${issue.reporterName} (${issue.reporterRole})</span>
+                <span>โดย: ${escapeHTML(issue.reporterName)} (${escapeHTML(issue.reporterRole)})</span>
                 <span>${formatDateTime(issue.date)}</span>
             </div>
             ${actionButtons}
@@ -2778,9 +2893,9 @@ function renderAdminMembersList() {
         const row = document.createElement('tr');
         row.style.borderBottom = '1px solid var(--border-color)';
         row.innerHTML = `
-            <td style="padding: 0.5rem; font-family: monospace; font-weight: bold; color: var(--text-secondary);">${m.id}</td>
-            <td style="padding: 0.5rem; color: var(--text-primary);">${m.firstName} ${m.lastName}</td>
-            <td style="padding: 0.5rem; color: var(--text-secondary);">${m.room || '5/8'}</td>
+            <td style="padding: 0.5rem; font-family: monospace; font-weight: bold; color: var(--text-secondary);">${escapeHTML(m.id)}</td>
+            <td style="padding: 0.5rem; color: var(--text-primary);">${escapeHTML(m.firstName)} ${escapeHTML(m.lastName)}</td>
+            <td style="padding: 0.5rem; color: var(--text-secondary);">${escapeHTML(m.room || '5/8')}</td>
             <td style="padding: 0.5rem; text-align: right; display: flex; justify-content: flex-end; gap: 0.35rem;">
                 <button class="btn" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--accent-primary); color: white; border: none; border-radius: 0.25rem; width: auto;" onclick="startEditMember('${m.id}')">
                     <i class="fa-solid fa-edit"></i> แก้ไข
@@ -2801,10 +2916,10 @@ function renderAdminMembersList() {
             
             card.innerHTML = `
                 <div class="member-card-left">
-                    <div class="member-card-avatar">${initial}</div>
+                    <div class="member-card-avatar">${escapeHTML(initial)}</div>
                     <div class="member-card-info">
-                        <div class="member-card-name">${m.firstName} ${m.lastName}</div>
-                        <div class="member-card-meta">รหัส: ${m.id} | ห้อง: ${m.room || '5/8'}</div>
+                        <div class="member-card-name">${escapeHTML(m.firstName)} ${escapeHTML(m.lastName)}</div>
+                        <div class="member-card-meta">รหัส: ${escapeHTML(m.id)} | ห้อง: ${escapeHTML(m.room || '5/8')}</div>
                     </div>
                 </div>
                 <div class="member-card-actions">
@@ -3070,7 +3185,7 @@ function renderTransactionsList() {
                     ${iconMarkup}
                 </div>
                 <div class="ledger-info">
-                    <div class="ledger-desc">${t.desc}</div>
+                    <div class="ledger-desc">${escapeHTML(t.desc)}</div>
                     <div class="ledger-meta">
                         <span>📅 ${formattedDate}</span>
                         <span>|</span>
