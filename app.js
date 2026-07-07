@@ -1470,16 +1470,17 @@ function handleMemberLogin(event) {
 
     showLoader("กำลังเข้าสู่ระบบ...", "กำลังยืนยันเซสชันสมาชิกกับ Firebase...");
 
+    // Set state.user first to avoid race condition with onAuthStateChanged observer
+    state.user = {
+        id: memberId,
+        name: name,
+        department: dept,
+        role: 'purchaser'
+    };
+    saveToLocalStorage();
+
     firebase.auth().signInAnonymously()
         .then(() => {
-            state.user = {
-                id: memberId,
-                name: name,
-                department: dept,
-                role: 'purchaser'
-            };
-            saveToLocalStorage();
-            
             loadFromDatabase(() => {
                 checkSession();
                 hideLoader();
@@ -1488,6 +1489,8 @@ function handleMemberLogin(event) {
         })
         .catch(err => {
             console.error("Anonymous authentication failure:", err);
+            state.user = null;
+            saveToLocalStorage();
             hideLoader();
             showCustomAlert("เชื่อมต่อระบบล็อกอินล้มเหลว: " + err.message, "error");
         });
