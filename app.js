@@ -19,6 +19,15 @@ if (typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.a
         db = firebase.firestore();
         useFirebase = true;
         console.log("🔥 Firebase initialized successfully! Connected to Firestore Database.");
+        
+        // Enable Firestore offline persistence for smooth instant loading
+        db.enablePersistence()
+            .then(() => {
+                console.log("🔥 Firestore Offline Persistence enabled successfully!");
+            })
+            .catch(err => {
+                console.warn("⚠️ Firestore Offline Persistence failed to enable:", err.code);
+            });
     } catch (e) {
         console.error("Firebase init failed, running in local database mode:", e);
     }
@@ -537,7 +546,7 @@ function loadFromDatabase(callback) {
                 firstCallbackDone = true;
                 callback();
             }
-        }, 3000); // 3 seconds timeout to start app quickly
+        }, 6000); // 6 seconds timeout to handle mobile network latency in crowded environments
 
         // Fetch all collections
         Promise.all([
