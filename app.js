@@ -1557,7 +1557,11 @@ function handlePresidentLogin(event) {
         .catch(err => {
             console.error("Administrative Auth failed:", err);
             hideLoader();
-            errorMsg.textContent = "❌ รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง";
+            if (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'))) {
+                errorMsg.innerHTML = "❌ <strong>เชื่อมต่อล้มเหลว (Permission Denied):</strong><br>สิทธิ์ในระบบคลาวด์บล็อกการเข้าถึง กรุณาอัปเดตกฎ Firestore Security Rules ใน Firebase Console ตามแผนงานระบบความปลอดภัย";
+            } else {
+                errorMsg.textContent = "❌ รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง";
+            }
             errorMsg.style.display = 'block';
         });
 }
