@@ -36,6 +36,10 @@ function mapToPostgres(tableName, docData) {
         mapped.approved_by = mapped.approvedBy;
         delete mapped.approvedBy;
     }
+    if (mapped.requestId !== undefined) {
+        mapped.request_id = mapped.requestId;
+        delete mapped.requestId;
+    }
     if (tableName === 'logs' && mapped.desc !== undefined) {
         mapped.desc_text = mapped.desc;
         delete mapped.desc;
@@ -66,6 +70,10 @@ function mapFromPostgres(tableName, rowData) {
     if (mapped.approved_by !== undefined) {
         mapped.approvedBy = mapped.approved_by;
         delete mapped.approved_by;
+    }
+    if (mapped.request_id !== undefined) {
+        mapped.requestId = mapped.request_id;
+        delete mapped.request_id;
     }
     if (rowData.desc_text !== undefined) {
         mapped.desc = rowData.desc_text;
