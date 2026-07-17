@@ -2,13 +2,13 @@
 const supabaseUrl = "https://szaugmspjkyngjjgsxhn.supabase.co";
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6YXVnbXNwamt5bmdqamdzeGhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODUwMDMsImV4cCI6MjA5OTg2MTAwM30.dJ_kF5HiJDiypXFJLPHTVCsySCy5tDrvLy0Vn5C27NE";
 
-let supabase = null;
+let supabaseClient = null;
 let useFirebase = false;
 
 // Initialize Supabase Client
 if (typeof window.supabase !== 'undefined') {
     try {
-        supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
         useFirebase = true; // Set to true to satisfy existing code logic checks
         console.log("🔥 Supabase Client initialized successfully!");
     } catch (e) {
@@ -112,7 +112,7 @@ const db = {
                     collectionName: collectionName,
                     docId: docId,
                     get: async function() {
-                        let { data, error } = await supabase
+                        let { data, error } = await supabaseClient
                             .from(collectionName)
                             .select('*')
                             .eq('id', docId)
@@ -122,10 +122,10 @@ const db = {
                         // Self-healing check for migrated users table (linking new Supabase Auth UUID to profile row)
                         if (!data && collectionName === 'users') {
                             try {
-                                const { data: { user } } = await supabase.auth.getUser();
+                                const { data: { user } } = await supabaseClient.auth.getUser();
                                 if (user && user.email) {
                                     const username = user.email.split('@')[0];
-                                    const { data: userByUsername, error: err2 } = await supabase
+                                    const { data: userByUsername, error: err2 } = await supabaseClient
                                         .from('users')
                                         .select('*')
                                         .eq('username', username)
@@ -133,9 +133,9 @@ const db = {
                                     if (!err2 && userByUsername) {
                                         data = userByUsername;
                                         // Update the old migrated ID to match the new Supabase Auth UUID
-                                        await supabase.from('users').delete().eq('id', userByUsername.id);
+                                        await supabaseClient.from('users').delete().eq('id', userByUsername.id);
                                         data.id = user.id;
-                                        await supabase.from('users').insert(data);
+                                        await supabaseClient.from('users').insert(data);
                                         console.log(`🔥 Self-healed user profile for ${username}: linked to Supabase Auth ID ${user.id}`);
                                     }
                                 }
@@ -149,14 +149,14 @@ const db = {
                     set: async function(docData) {
                         const payload = mapToPostgres(collectionName, docData);
                         payload.id = docId;
-                        const { error } = await supabase
+                        const { error } = await supabaseClient
                             .from(collectionName)
                             .upsert(payload);
                         if (error) throw error;
                         return true;
                     },
                     delete: async function() {
-                        const { error } = await supabase
+                        const { error } = await supabaseClient
                             .from(collectionName)
                             .delete()
                             .eq('id', docId);
@@ -165,7 +165,7 @@ const db = {
                     },
                     onSnapshot: function(callback) {
                         // Initial query
-                        supabase
+                        supabaseClient
                             .from(collectionName)
                             .select('*')
                             .eq('id', docId)
@@ -179,7 +179,7 @@ const db = {
                             });
 
                         // Realtime channel subscription
-                        const channel = supabase.channel(`realtime-doc-${collectionName}-${docId}-${Math.random()}`)
+                        const channel = supabaseClient.channel(`realtime-doc-${collectionName}-${docId}-${Math.random()}`)
                             .on('postgres_changes', { 
                                 event: '*', 
                                 schema: 'public', 
@@ -187,7 +187,7 @@ const db = {
                                 filter: `id=eq.${docId}`
                             }, payload => {
                                 // Fetch fresh copy
-                                supabase
+                                supabaseClient
                                     .from(collectionName)
                                     .select('*')
                                     .eq('id', docId)
@@ -201,13 +201,13 @@ const db = {
                             .subscribe();
 
                         return () => {
-                            supabase.removeChannel(channel);
+                            supabaseClient.removeChannel(channel);
                         };
                     }
                 };
             },
             get: async function() {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from(collectionName)
                     .select('*');
                 if (error) throw error;
@@ -215,7 +215,7 @@ const db = {
             },
             onSnapshot: function(callback) {
                 // Initial load
-                supabase
+                supabaseClient
                     .from(collectionName)
                     .select('*')
                     .then(res => {
@@ -227,14 +227,14 @@ const db = {
                     });
 
                 // Realtime subscription
-                const channel = supabase.channel(`realtime-col-${collectionName}-${Math.random()}`)
+                const channel = supabaseClient.channel(`realtime-col-${collectionName}-${Math.random()}`)
                     .on('postgres_changes', { 
                         event: '*', 
                         schema: 'public', 
                         table: collectionName 
                     }, payload => {
                         // Fetch fresh copy of all rows
-                        supabase
+                        supabaseClient
                             .from(collectionName)
                             .select('*')
                             .then(res => {
@@ -246,7 +246,7 @@ const db = {
                     .subscribe();
 
                 return () => {
-                    supabase.removeChannel(channel);
+                    supabaseClient.removeChannel(channel);
                 };
             }
         };
@@ -255,7 +255,7 @@ const db = {
         return {
             operations: [],
             delete: function(docRef) {
-                this.operations.push(() => supabase.from(docRef.collectionName).delete().eq('id', docRef.docId));
+                this.operations.push(() => supabaseClient.from(docRef.collectionName).delete().eq('id', docRef.docId));
             },
             commit: async function() {
                 const results = await Promise.all(this.operations.map(op => op()));
@@ -272,7 +272,7 @@ const firebase = {
     auth: function() {
         return {
             signInAnonymously: async function() {
-                const { data, error } = await supabase.auth.signInAnonymously();
+                const { data, error } = await supabaseClient.auth.signInAnonymously();
                 if (error) throw error;
                 return {
                     user: {
@@ -282,7 +282,7 @@ const firebase = {
                 };
             },
             signInWithEmailAndPassword: async function(email, pass) {
-                const { data, error } = await supabase.auth.signInWithPassword({
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
                     email: email,
                     password: pass
                 });
@@ -295,13 +295,13 @@ const firebase = {
                 };
             },
             signOut: async function() {
-                const { error } = await supabase.auth.signOut();
+                const { error } = await supabaseClient.auth.signOut();
                 if (error) throw error;
                 return true;
             },
             onAuthStateChanged: function(callback) {
                 // Return current session status immediately
-                supabase.auth.getSession().then(({ data: { session } }) => {
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
                     if (session) {
                         const user = { ...session.user };
                         user.uid = user.id;
@@ -313,7 +313,7 @@ const firebase = {
                 });
 
                 // Listen to Auth state changes
-                const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
                     if (session) {
                         const user = { ...session.user };
                         user.uid = user.id;
