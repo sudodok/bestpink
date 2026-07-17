@@ -1,36 +1,397 @@
-// ========== FIREBASE CONFIGURATION ==========
-const firebaseConfig = {
-  apiKey: "AIzaSyBd_pyErc9_R8khJ_C7-T0MH9YeP9fMChw",
-  authDomain: "pink-team-sports-86e69.firebaseapp.com",
-  projectId: "pink-team-sports-86e69",
-  storageBucket: "pink-team-sports-86e69.firebasestorage.app",
-  messagingSenderId: "629781285829",
-  appId: "1:629781285829:web:9c91cdaac966a16ce359ac",
-  measurementId: "G-PK1JSB9T32"
-};
+// ========== SUPABASE CONFIGURATION & ADAPTERS ==========
+const supabaseUrl = "https://szaugmspjkyngjjgsxhn.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6YXVnbXNwamt5bmdqamdzeGhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODUwMDMsImV4cCI6MjA5OTg2MTAwM30.dJ_kF5HiJDiypXFJLPHTVCsySCy5tDrvLy0Vn5C27NE";
 
-let db = null;
+let supabase = null;
 let useFirebase = false;
 
-// เริ่มต้นใช้งาน Firebase
-if (typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+// Initialize Supabase Client
+if (typeof window.supabase !== 'undefined') {
     try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        useFirebase = true;
-        console.log("🔥 Firebase initialized successfully! Connected to Firestore Database.");
-        
-        // Enable Firestore offline persistence for smooth instant loading
-        db.enablePersistence()
-            .then(() => {
-                console.log("🔥 Firestore Offline Persistence enabled successfully!");
-            })
-            .catch(err => {
-                console.warn("⚠️ Firestore Offline Persistence failed to enable:", err.code);
-            });
+        supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        useFirebase = true; // Set to true to satisfy existing code logic checks
+        console.log("🔥 Supabase Client initialized successfully!");
     } catch (e) {
-        console.error("Firebase init failed, running in local database mode:", e);
+        console.error("Supabase Client initialization failed:", e);
     }
+}
+
+// Helpers to map camelCase (frontend JS) to snake_case (Postgres columns)
+function mapToPostgres(tableName, docData) {
+    if (tableName === 'settings') return { value: docData };
+    const mapped = { ...docData };
+    if (mapped.productPhotos !== undefined) {
+        mapped.product_photos = mapped.productPhotos;
+        delete mapped.productPhotos;
+    }
+    if (mapped.transferSlip !== undefined) {
+        mapped.transfer_slip = mapped.transferSlip;
+        delete mapped.transferSlip;
+    }
+    if (mapped.rejectReason !== undefined) {
+        mapped.reject_reason = mapped.rejectReason;
+        delete mapped.rejectReason;
+    }
+    if (mapped.approvedBy !== undefined) {
+        mapped.approved_by = mapped.approvedBy;
+        delete mapped.approvedBy;
+    }
+    if (tableName === 'logs' && mapped.desc !== undefined) {
+        mapped.desc_text = mapped.desc;
+        delete mapped.desc;
+    }
+    if (tableName === 'incomes' && mapped.desc !== undefined) {
+        mapped.description = mapped.desc;
+        delete mapped.desc;
+    }
+    return mapped;
+}
+
+// Helpers to map snake_case (Postgres columns) back to camelCase (frontend JS)
+function mapFromPostgres(tableName, rowData) {
+    if (tableName === 'settings') return rowData.value;
+    const mapped = { ...rowData };
+    if (mapped.product_photos !== undefined) {
+        mapped.productPhotos = mapped.product_photos;
+        delete mapped.product_photos;
+    }
+    if (mapped.transfer_slip !== undefined) {
+        mapped.transferSlip = mapped.transfer_slip;
+        delete mapped.transfer_slip;
+    }
+    if (mapped.reject_reason !== undefined) {
+        mapped.rejectReason = mapped.reject_reason;
+        delete mapped.reject_reason;
+    }
+    if (mapped.approved_by !== undefined) {
+        mapped.approvedBy = mapped.approved_by;
+        delete mapped.approved_by;
+    }
+    if (rowData.desc_text !== undefined) {
+        mapped.desc = rowData.desc_text;
+        delete mapped.desc_text;
+    }
+    if (rowData.description !== undefined) {
+        mapped.desc = rowData.description;
+        delete mapped.description;
+    }
+    return mapped;
+}
+
+// Create DocumentSnapshot lookalike
+function makeDocSnapshot(tableName, docId, row) {
+    return {
+        exists: !!row,
+        id: docId,
+        data: () => {
+            if (!row) return null;
+            return mapFromPostgres(tableName, row);
+        }
+    };
+}
+
+// Create QuerySnapshot lookalike
+function makeQuerySnapshot(tableName, rows) {
+    const docs = (rows || []).map(row => makeDocSnapshot(tableName, row.id, row));
+    return {
+        docs: docs,
+        forEach: function(callback) {
+            docs.forEach(callback);
+        },
+        empty: docs.length === 0,
+        size: docs.length
+    };
+}
+
+// Create Firebase-like Firestore wrapper
+const db = {
+    collection: function(collectionName) {
+        return {
+            doc: function(docId) {
+                return {
+                    collectionName: collectionName,
+                    docId: docId,
+                    get: async function() {
+                        let { data, error } = await supabase
+                            .from(collectionName)
+                            .select('*')
+                            .eq('id', docId)
+                            .maybeSingle();
+                        if (error) throw error;
+                        
+                        // Self-healing check for migrated users table (linking new Supabase Auth UUID to profile row)
+                        if (!data && collectionName === 'users') {
+                            try {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                if (user && user.email) {
+                                    const username = user.email.split('@')[0];
+                                    const { data: userByUsername, error: err2 } = await supabase
+                                        .from('users')
+                                        .select('*')
+                                        .eq('username', username)
+                                        .maybeSingle();
+                                    if (!err2 && userByUsername) {
+                                        data = userByUsername;
+                                        // Update the old migrated ID to match the new Supabase Auth UUID
+                                        await supabase.from('users').delete().eq('id', userByUsername.id);
+                                        data.id = user.id;
+                                        await supabase.from('users').insert(data);
+                                        console.log(`🔥 Self-healed user profile for ${username}: linked to Supabase Auth ID ${user.id}`);
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("Self-healing profile check skipped or failed:", e);
+                            }
+                        }
+                        
+                        return makeDocSnapshot(collectionName, docId, data);
+                    },
+                    set: async function(docData) {
+                        const payload = mapToPostgres(collectionName, docData);
+                        payload.id = docId;
+                        const { error } = await supabase
+                            .from(collectionName)
+                            .upsert(payload);
+                        if (error) throw error;
+                        return true;
+                    },
+                    delete: async function() {
+                        const { error } = await supabase
+                            .from(collectionName)
+                            .delete()
+                            .eq('id', docId);
+                        if (error) throw error;
+                        return true;
+                    },
+                    onSnapshot: function(callback) {
+                        // Initial query
+                        supabase
+                            .from(collectionName)
+                            .select('*')
+                            .eq('id', docId)
+                            .maybeSingle()
+                            .then(res => {
+                                if (res.error) {
+                                    console.error("Initial doc snapshot error:", res.error);
+                                } else {
+                                    callback(makeDocSnapshot(collectionName, docId, res.data));
+                                }
+                            });
+
+                        // Realtime channel subscription
+                        const channel = supabase.channel(`realtime-doc-${collectionName}-${docId}-${Math.random()}`)
+                            .on('postgres_changes', { 
+                                event: '*', 
+                                schema: 'public', 
+                                table: collectionName,
+                                filter: `id=eq.${docId}`
+                            }, payload => {
+                                // Fetch fresh copy
+                                supabase
+                                    .from(collectionName)
+                                    .select('*')
+                                    .eq('id', docId)
+                                    .maybeSingle()
+                                    .then(res => {
+                                        if (res.data) {
+                                            callback(makeDocSnapshot(collectionName, docId, res.data));
+                                        }
+                                    });
+                            })
+                            .subscribe();
+
+                        return () => {
+                            supabase.removeChannel(channel);
+                        };
+                    }
+                };
+            },
+            get: async function() {
+                const { data, error } = await supabase
+                    .from(collectionName)
+                    .select('*');
+                if (error) throw error;
+                return makeQuerySnapshot(collectionName, data);
+            },
+            onSnapshot: function(callback) {
+                // Initial load
+                supabase
+                    .from(collectionName)
+                    .select('*')
+                    .then(res => {
+                        if (res.error) {
+                            console.error("Initial collection snapshot error:", res.error);
+                        } else {
+                            callback(makeQuerySnapshot(collectionName, res.data));
+                        }
+                    });
+
+                // Realtime subscription
+                const channel = supabase.channel(`realtime-col-${collectionName}-${Math.random()}`)
+                    .on('postgres_changes', { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: collectionName 
+                    }, payload => {
+                        // Fetch fresh copy of all rows
+                        supabase
+                            .from(collectionName)
+                            .select('*')
+                            .then(res => {
+                                if (res.data) {
+                                    callback(makeQuerySnapshot(collectionName, res.data));
+                                }
+                            });
+                    })
+                    .subscribe();
+
+                return () => {
+                    supabase.removeChannel(channel);
+                };
+            }
+        };
+    },
+    batch: function() {
+        return {
+            operations: [],
+            delete: function(docRef) {
+                this.operations.push(() => supabase.from(docRef.collectionName).delete().eq('id', docRef.docId));
+            },
+            commit: async function() {
+                const results = await Promise.all(this.operations.map(op => op()));
+                const err = results.find(r => r.error);
+                if (err) throw err.error;
+                return true;
+            }
+        };
+    }
+};
+
+// Create Firebase-like Auth wrapper
+const firebase = {
+    auth: function() {
+        return {
+            signInAnonymously: async function() {
+                const { data, error } = await supabase.auth.signInAnonymously();
+                if (error) throw error;
+                return {
+                    user: {
+                        uid: data.user.id,
+                        isAnonymous: true
+                    }
+                };
+            },
+            signInWithEmailAndPassword: async function(email, pass) {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: pass
+                });
+                if (error) throw error;
+                return {
+                    user: {
+                        uid: data.user.id,
+                        isAnonymous: false
+                    }
+                };
+            },
+            signOut: async function() {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+                return true;
+            },
+            onAuthStateChanged: function(callback) {
+                // Return current session status immediately
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (session) {
+                        const user = { ...session.user };
+                        user.uid = user.id;
+                        user.isAnonymous = user.identities && user.identities.length === 0;
+                        callback(user);
+                    } else {
+                        callback(null);
+                    }
+                });
+
+                // Listen to Auth state changes
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                    if (session) {
+                        const user = { ...session.user };
+                        user.uid = user.id;
+                        user.isAnonymous = user.identities && user.identities.length === 0;
+                        callback(user);
+                    } else {
+                        callback(null);
+                    }
+                });
+                
+                return () => {
+                    subscription.unsubscribe();
+                };
+            }
+        };
+    }
+};
+
+// ========== REPORT EXPORT FUNCTIONS (EXCEL / PDF) ==========
+function exportToExcel() {
+    if (!state.transactions || state.transactions.length === 0) {
+        showCustomAlert("ไม่มีข้อมูลธุรกรรมที่จะส่งออก", "error");
+        return;
+    }
+
+    showLoader("กำลังประมวลผล...", "กำลังสร้างไฟล์ Excel...");
+    
+    try {
+        const sorted = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        const rows = sorted.map((t, idx) => {
+            let formattedDate = t.date;
+            try {
+                formattedDate = new Date(t.date).toLocaleDateString('th-TH');
+            } catch(e) {}
+            
+            return {
+                "ลำดับ": idx + 1,
+                "วันที่": formattedDate,
+                "ประเภทรายการ": t.type === 'income' ? '📈 รายรับ' : '📉 รายจ่าย',
+                "ประเภทเงิน": t.wallet === 'cash' ? '💵 เงินสด' : '🏦 เงินโอน',
+                "รายละเอียด": t.desc,
+                "จำนวนเงิน (บาท)": t.amount
+            };
+        });
+        
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wscols = [
+            { wch: 8 },  // ลำดับ
+            { wch: 15 }, // วันที่
+            { wch: 15 }, // ประเภทรายการ
+            { wch: 15 }, // ประเภทเงิน
+            { wch: 45 }, // รายละเอียด
+            { wch: 18 }  // จำนวนเงิน
+        ];
+        ws['!cols'] = wscols;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "บัญชีรายรับรายจ่าย");
+        
+        const filename = `บัญชีรายรับรายจ่าย_สีชมพู_${new Date().toLocaleDateString('th-TH').replace(/\//g, '_')}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        
+        hideLoader();
+        showCustomAlert("ส่งออกไฟล์ Excel สำเร็จ!", "success");
+    } catch(err) {
+        console.error("Excel export error:", err);
+        hideLoader();
+        showCustomAlert("เกิดข้อผิดพลาดในการสร้างไฟล์ Excel", "error");
+    }
+}
+
+function exportToPDF() {
+    if (!state.transactions || state.transactions.length === 0) {
+        showCustomAlert("ไม่มีข้อมูลธุรกรรมที่จะสั่งพิมพ์", "error");
+        return;
+    }
+    window.print();
 }
 
 // Placeholder SVGs to use as mock default images

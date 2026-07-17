@@ -675,17 +675,23 @@
                 </div>
 
                 <!-- Transaction Ledger List -->
-                <div class="panel-card">
+                <div class="panel-card print-target">
                     <h2 class="panel-title"><i class="fa-solid fa-receipt"></i> บัญชีเดินรายการแยกตามประเภทเงิน</h2>
                     
                     <!-- Search/Filter -->
-                    <div style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <div style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                         <input type="text" id="acc-tx-search" class="form-control" placeholder="ค้นหาตามคำอธิบาย..." oninput="renderTransactionsList()" style="flex: 1; min-width: 180px;">
-                        <select id="acc-tx-filter-wallet" class="form-control" style="width: 100%; max-width: 150px; padding: 0.5rem;" onchange="renderTransactionsList()">
+                        <select id="acc-tx-filter-wallet" class="form-control" style="width: auto; max-width: 150px; padding: 0.5rem;" onchange="renderTransactionsList()">
                             <option value="all">ทุกประเภทเงิน</option>
                             <option value="cash">💵 เงินสด</option>
                             <option value="bank">🏦 เงินโอน</option>
                         </select>
+                        <button class="btn btn-success" onclick="exportToExcel()" style="width: auto; padding: 0.5rem 0.8rem; font-size: 0.85rem;" title="ส่งออกข้อมูลเป็น Excel">
+                            <i class="fa-solid fa-file-excel"></i> ส่งออก Excel
+                        </button>
+                        <button class="btn" onclick="exportToPDF()" style="width: auto; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; font-size: 0.85rem;" title="พิมพ์รายงานเป็น PDF">
+                            <i class="fa-solid fa-file-pdf"></i> พิมพ์ PDF
+                        </button>
                     </div>
 
                     <!-- Ledger Container -->
@@ -953,14 +959,13 @@
                 <i class="fa-solid fa-circle-notch fa-spin"></i>
             </div>
             <h3 id="loader-title" style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">กำลังบันทึกข้อมูล...</h3>
-            <p id="loader-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; opacity: 0.9;">กรุณารอสักครู่ ระบบกำลังประสานงานกับคลาวด์ Firebase</p>
+            <p id="loader-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; opacity: 0.9;">กรุณารอสักครู่ ระบบกำลังประสานงานกับคลาวด์ Supabase</p>
         </div>
     </div>
 
-    <!-- Firebase Compat SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Supabase JS Client & SheetJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <!-- Main JavaScript Logic -->
     <script src="app.js"></script>
