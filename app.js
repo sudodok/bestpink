@@ -942,13 +942,13 @@ function sanitizeState() {
 
 function loadFromDatabase(callback) {
     if (useFirebase && db) {
-        console.log("Attempting to connect to Firebase Firestore (collection-based schema)...\n");
+        console.log("Attempting to connect to Supabase Cloud Database...\n");
         let hasLoaded = false;
         let firstCallbackDone = false;
         
         const fbTimeout = setTimeout(() => {
             if (!hasLoaded) {
-                console.warn("⚠️ Firebase connection timed out. Proceeding with local data...");
+                console.warn("⚠️ Supabase connection timed out. Proceeding with local data...");
                 useFirebase = false;
                 firstCallbackDone = true;
                 callback();
@@ -974,7 +974,7 @@ function loadFromDatabase(callback) {
             const currentUser = state.user;
             
             if (requestsSnap.empty && incomesSnap.empty && logsSnap.empty && issuesSnap.empty && (!transactionsSnap || transactionsSnap.empty)) {
-                console.log("Firebase contains no collection data. Seeding with local state...");
+                console.log("Supabase contains no data. Seeding with local state...");
                 seedFirebaseFromLocal();
                 setupFirebaseRealtimeListener();
                 if (!firstCallbackDone) {
@@ -1149,7 +1149,7 @@ function loadFromDatabase(callback) {
                 state.user = currentUser;
                 sanitizeState();
                 
-                console.log("State loaded successfully from Firebase Firestore Collections.");
+                console.log("State loaded successfully from Supabase Cloud Database.");
                 saveToLocalStorage();
                 setupFirebaseRealtimeListener();
                 
@@ -1164,7 +1164,7 @@ function loadFromDatabase(callback) {
             if (hasLoaded) return;
             hasLoaded = true;
             clearTimeout(fbTimeout);
-            console.error("Error loading from Firebase Collections, using local data:", err);
+            console.error("Error loading from Supabase Cloud Database, using local data:", err);
             useFirebase = false;
             if (!firstCallbackDone) {
                 firstCallbackDone = true;
@@ -1188,7 +1188,7 @@ function setupFirebaseRealtimeListener() {
         firebaseListeners = [];
     }
     
-    console.log("Setting up multi-collection Firestore realtime listeners...");
+    console.log("Setting up multi-collection Supabase realtime listeners...");
     
     // 1. Listen to requests
     const unsubRequests = db.collection('requests').onSnapshot(snapshot => {
