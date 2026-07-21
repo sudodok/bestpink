@@ -114,12 +114,19 @@ function makeDocSnapshot(tableName, docId, row) {
 }
 
 // Create QuerySnapshot lookalike
-function makeQuerySnapshot(tableName, rows) {
+function makeQuerySnapshot(tableName, rows, changes) {
     const docs = (rows || []).map(row => makeDocSnapshot(tableName, row.id, row));
+    const docChangesList = changes ? changes : docs.map(d => ({
+        type: 'added',
+        doc: d
+    }));
     return {
         docs: docs,
         forEach: function(callback) {
             docs.forEach(callback);
+        },
+        docChanges: function() {
+            return docChangesList;
         },
         empty: docs.length === 0,
         size: docs.length
@@ -256,13 +263,29 @@ const db = {
                         schema: 'public', 
                         table: collectionName 
                     }, payload => {
+                        let changeType = 'modified';
+                        if (payload.eventType === 'INSERT') changeType = 'added';
+                        else if (payload.eventType === 'DELETE') changeType = 'removed';
+
                         // Fetch fresh copy of all rows
                         supabaseClient
                             .from(collectionName)
                             .select('*')
                             .then(res => {
                                 if (res.data) {
-                                    callback(makeQuerySnapshot(collectionName, res.data));
+                                    let changedDoc = null;
+                                    const targetId = (payload.new && payload.new.id) || (payload.old && payload.old.id);
+                                    if (payload.eventType === 'DELETE') {
+                                        changedDoc = makeDocSnapshot(collectionName, targetId, payload.old);
+                                    } else {
+                                        const freshRow = res.data.find(r => r.id === targetId);
+                                        changedDoc = makeDocSnapshot(collectionName, targetId, freshRow || payload.new);
+                                    }
+                                    const changeItem = {
+                                        type: changeType,
+                                        doc: changedDoc
+                                    };
+                                    callback(makeQuerySnapshot(collectionName, res.data, [changeItem]));
                                 }
                             });
                     })
