@@ -20,9 +20,16 @@ if (typeof window.supabase !== 'undefined') {
 function mapToPostgres(tableName, docData) {
     if (tableName === 'settings') return { value: docData };
     const mapped = { ...docData };
+    delete mapped._synced;
     if (mapped.productPhotos !== undefined) {
         mapped.product_photos = mapped.productPhotos;
         delete mapped.productPhotos;
+    }
+    if (mapped.productPhoto !== undefined) {
+        if (!mapped.product_photos) {
+            mapped.product_photos = [mapped.productPhoto];
+        }
+        delete mapped.productPhoto;
     }
     if (mapped.transferSlip !== undefined) {
         mapped.transfer_slip = mapped.transferSlip;
@@ -57,7 +64,15 @@ function mapFromPostgres(tableName, rowData) {
     const mapped = { ...rowData };
     if (mapped.product_photos !== undefined) {
         mapped.productPhotos = mapped.product_photos;
+        if (Array.isArray(mapped.product_photos) && mapped.product_photos.length > 0) {
+            mapped.productPhoto = mapped.product_photos[0];
+        }
         delete mapped.product_photos;
+    }
+    if (mapped.receipts !== undefined && Array.isArray(mapped.receipts) && mapped.receipts.length > 0) {
+        if (!mapped.receipt) {
+            mapped.receipt = mapped.receipts[0];
+        }
     }
     if (mapped.transfer_slip !== undefined) {
         mapped.transferSlip = mapped.transfer_slip;
