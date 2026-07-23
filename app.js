@@ -133,6 +133,33 @@ function makeQuerySnapshot(tableName, rows, changes) {
     };
 }
 
+// Helper to handle invalid or expired JWT auth tokens (401)
+async function handleSupabaseAuthError(error) {
+    if (!error) return false;
+    const is401 = error.status === 401 || 
+                  error.code === 'PGRST301' || 
+                  (error.message && (
+                      error.message.toLowerCase().includes('jwt') || 
+                      error.message.includes('401') || 
+                      error.message.toLowerCase().includes('unauthorized') ||
+                      error.message.toLowerCase().includes('invalid claim')
+                  ));
+    if (is401) {
+        console.warn("⚠️ Invalid/Expired Supabase Auth token detected (401). Clearing stale session from browser...", error);
+        try {
+            if (supabaseClient && supabaseClient.auth) {
+                await supabaseClient.auth.signOut();
+            }
+            state.user = null;
+            saveToLocalStorage();
+        } catch (e) {
+            console.error("Error signing out stale session:", e);
+        }
+        return true;
+    }
+    return false;
+}
+
 // Create Firebase-like Firestore wrapper
 const db = {
     collection: function(collectionName) {
@@ -147,7 +174,21 @@ const db = {
                             .select('*')
                             .eq('id', docId)
                             .maybeSingle();
-                        if (error) throw error;
+                        
+                        if (error) {
+                            const cleared = await handleSupabaseAuthError(error);
+                            if (cleared) {
+                                const retry = await supabaseClient
+                                    .from(collectionName)
+                                    .select('*')
+                                    .eq('id', docId)
+                                    .maybeSingle();
+                                if (retry.error) throw retry.error;
+                                data = retry.data;
+                            } else {
+                                throw error;
+                            }
+                        }
                         
                         // Self-healing check for migrated users table (linking new Supabase Auth UUID to profile row)
                         if (!data && collectionName === 'users') {
@@ -179,18 +220,39 @@ const db = {
                     set: async function(docData) {
                         const payload = mapToPostgres(collectionName, docData);
                         payload.id = docId;
-                        const { error } = await supabaseClient
+                        let { error } = await supabaseClient
                             .from(collectionName)
                             .upsert(payload);
-                        if (error) throw error;
+                        if (error) {
+                            const cleared = await handleSupabaseAuthError(error);
+                            if (cleared) {
+                                const retry = await supabaseClient
+                                    .from(collectionName)
+                                    .upsert(payload);
+                                if (retry.error) throw retry.error;
+                            } else {
+                                throw error;
+                            }
+                        }
                         return true;
                     },
                     delete: async function() {
-                        const { error } = await supabaseClient
+                        let { error } = await supabaseClient
                             .from(collectionName)
                             .delete()
                             .eq('id', docId);
-                        if (error) throw error;
+                        if (error) {
+                            const cleared = await handleSupabaseAuthError(error);
+                            if (cleared) {
+                                const retry = await supabaseClient
+                                    .from(collectionName)
+                                    .delete()
+                                    .eq('id', docId);
+                                if (retry.error) throw retry.error;
+                            } else {
+                                throw error;
+                            }
+                        }
                         return true;
                     },
                     onSnapshot: function(callback) {
@@ -200,9 +262,10 @@ const db = {
                             .select('*')
                             .eq('id', docId)
                             .maybeSingle()
-                            .then(res => {
+                            .then(async res => {
                                 if (res.error) {
                                     console.error("Initial doc snapshot error:", res.error);
+                                    await handleSupabaseAuthError(res.error);
                                 } else {
                                     callback(makeDocSnapshot(collectionName, docId, res.data));
                                 }
@@ -237,10 +300,21 @@ const db = {
                 };
             },
             get: async function() {
-                const { data, error } = await supabaseClient
+                let { data, error } = await supabaseClient
                     .from(collectionName)
                     .select('*');
-                if (error) throw error;
+                if (error) {
+                    const cleared = await handleSupabaseAuthError(error);
+                    if (cleared) {
+                        const retry = await supabaseClient
+                            .from(collectionName)
+                            .select('*');
+                        if (retry.error) throw retry.error;
+                        data = retry.data;
+                    } else {
+                        throw error;
+                    }
+                }
                 return makeQuerySnapshot(collectionName, data);
             },
             onSnapshot: function(callback) {
@@ -940,7 +1014,7 @@ function sanitizeState() {
     }
 }
 
-function loadFromDatabase(callback) {
+function loadFromDatabase(callback, isRetry = false) {
     if (useFirebase && db) {
         console.log("Attempting to connect to Supabase Cloud Database...\n");
         let hasLoaded = false;
@@ -1160,11 +1234,19 @@ function loadFromDatabase(callback) {
                     renderAll();
                 }
             }
-        }).catch(err => {
+        }).catch(async err => {
             if (hasLoaded) return;
             hasLoaded = true;
             clearTimeout(fbTimeout);
-            console.error("Error loading from Supabase Cloud Database, using local data:", err);
+            console.error("Error loading from Supabase Cloud Database:", err);
+            
+            const isAuthErr = await handleSupabaseAuthError(err);
+            if (isAuthErr && !isRetry) {
+                console.log("🔄 Stale token cleared! Retrying loadFromDatabase with clean anon session...");
+                useFirebase = true;
+                return loadFromDatabase(callback, true);
+            }
+
             useFirebase = false;
             if (!firstCallbackDone) {
                 firstCallbackDone = true;
