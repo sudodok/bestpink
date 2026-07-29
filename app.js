@@ -3927,20 +3927,33 @@ function migrateOldDataToTransactions() {
     if (state.incomes) {
         state.incomes.forEach(inc => {
             const txId = 'tx-inc-' + inc.id;
-            const exists = state.transactions.some(t => t.id === txId);
-            if (!exists) {
+            const incAmount = inc.amount || 0;
+            const incDate = inc.date ? new Date(inc.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+            const incDesc = inc.desc || inc.description || 'รายรับเงินกองกลางสีชมพู';
+            
+            const existingIdx = state.transactions.findIndex(t => t.id === txId);
+            if (existingIdx === -1) {
                 const txObj = {
                     id: txId,
                     type: 'income',
                     wallet: 'bank', // Default past incomes to bank transfer
-                    amount: inc.amount || 0,
-                    date: inc.date ? new Date(inc.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                    desc: inc.desc || inc.description || 'รายรับเงินกองกลางสีชมพู',
+                    amount: incAmount,
+                    date: incDate,
+                    desc: incDesc,
                     _synced: false
                 };
                 state.transactions.push(txObj);
                 modified = true;
                 syncItemToFirebase('transactions', txObj.id, txObj);
+            } else {
+                const existing = state.transactions[existingIdx];
+                if (existing.amount !== incAmount || existing.desc !== incDesc || existing.date !== incDate) {
+                    existing.amount = incAmount;
+                    existing.desc = incDesc;
+                    existing.date = incDate;
+                    modified = true;
+                    syncItemToFirebase('transactions', existing.id, existing);
+                }
             }
         });
     }
@@ -3950,20 +3963,33 @@ function migrateOldDataToTransactions() {
         state.requests.forEach(req => {
             if (req.status === 'approved') {
                 const txId = 'tx-exp-' + req.id;
-                const exists = state.transactions.some(t => t.id === txId);
-                if (!exists) {
+                const reqAmount = req.amount || 0;
+                const reqDate = req.date ? new Date(req.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                const reqDesc = `เบิกจ่าย: ${req.name} (${req.item})`;
+                
+                const existingIdx = state.transactions.findIndex(t => t.id === txId);
+                if (existingIdx === -1) {
                     const txObj = {
                         id: txId,
                         type: 'expense',
                         wallet: 'bank', // Reimbursements are always bank transfers
-                        amount: req.amount || 0,
-                        date: req.date ? new Date(req.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                        desc: `เบิกจ่าย: ${req.name} (${req.item})`,
+                        amount: reqAmount,
+                        date: reqDate,
+                        desc: reqDesc,
                         _synced: false
                     };
                     state.transactions.push(txObj);
                     modified = true;
                     syncItemToFirebase('transactions', txObj.id, txObj);
+                } else {
+                    const existing = state.transactions[existingIdx];
+                    if (existing.amount !== reqAmount || existing.desc !== reqDesc || existing.date !== reqDate) {
+                        existing.amount = reqAmount;
+                        existing.desc = reqDesc;
+                        existing.date = reqDate;
+                        modified = true;
+                        syncItemToFirebase('transactions', existing.id, existing);
+                    }
                 }
             }
         });
