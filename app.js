@@ -514,14 +514,20 @@ function exportToPDF() {
     window.print();
 }
 
+// Helper function to safely escape image URLs for HTML inline onclick and src attributes
+function safeImgAttr(src) {
+    if (!src) return '';
+    return src.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
 // Placeholder SVGs to use as mock default images
-const MOCK_RECEIPT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" style="background-color:%23f1f5f9;font-family:sans-serif;"><rect width="180" height="240" x="10" y="10" rx="5" fill="white" stroke="%23cbd5e1" stroke-width="2"/><line x1="25" y1="40" x2="175" y2="40" stroke="%23334155" stroke-width="2" stroke-dasharray="4"/><text x="25" y="65" fill="%231e293b" font-size="14" font-weight="bold">RECEIPT</text><text x="25" y="85" fill="%2364748b" font-size="10">Pink Team Sports Day</text><text x="25" y="120" fill="%23334155" font-size="11">Purchased Item</text><text x="25" y="140" fill="%2364748b" font-size="10">Tax invoice included</text><line x1="25" y1="180" x2="175" y2="180" stroke="%23cbd5e1" stroke-width="1"/><text x="25" y="205" fill="%231e293b" font-size="14" font-weight="bold">TOTAL</text><text x="110" y="205" fill="%23ec4899" font-size="14" font-weight="bold">Reimburse</text></svg>`;
+const MOCK_RECEIPT_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" style="background-color:#f1f5f9;font-family:sans-serif;"><rect width="180" height="240" x="10" y="10" rx="5" fill="white" stroke="#cbd5e1" stroke-width="2"/><line x1="25" y1="40" x2="175" y2="40" stroke="#334155" stroke-width="2" stroke-dasharray="4"/><text x="25" y="65" fill="#1e293b" font-size="14" font-weight="bold">RECEIPT</text><text x="25" y="85" fill="#64748b" font-size="10">Pink Team Sports Day</text><text x="25" y="120" fill="#334155" font-size="11">Purchased Item</text><text x="25" y="140" fill="#64748b" font-size="10">Tax invoice included</text><line x1="25" y1="180" x2="175" y2="180" stroke="#cbd5e1" stroke-width="1"/><text x="25" y="205" fill="#1e293b" font-size="14" font-weight="bold">TOTAL</text><text x="110" y="205" fill="#ec4899" font-size="14" font-weight="bold">Reimburse</text></svg>');
 
-const MOCK_PRODUCT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" style="background-color:%23fce7f3;font-family:sans-serif;"><rect width="180" height="180" x="10" y="10" rx="8" fill="white" stroke="%23f472b6" stroke-width="2"/><circle cx="100" cy="90" r="40" fill="%23f472b6" opacity="0.3"/><rect width="30" height="50" x="85" y="75" fill="%23ec4899" rx="3"/><text x="45" y="160" fill="%23db2777" font-size="12" font-weight="bold">PRODUCT IMAGE</text></svg>`;
+const MOCK_PRODUCT_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" style="background-color:#fce7f3;font-family:sans-serif;"><rect width="180" height="180" x="10" y="10" rx="8" fill="white" stroke="#f472b6" stroke-width="2"/><circle cx="100" cy="90" r="40" fill="#f472b6" opacity="0.3"/><rect width="30" height="50" x="85" y="75" fill="#ec4899" rx="3"/><text x="45" y="160" fill="#db2777" font-size="12" font-weight="bold">PRODUCT IMAGE</text></svg>');
 
-const MOCK_QRCODE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" style="background-color:%23e0f2fe;font-family:sans-serif;"><rect width="180" height="180" x="10" y="10" rx="10" fill="white" stroke="%230284c7" stroke-width="2"/><rect width="40" height="40" x="25" y="25" fill="%230f172a"/><rect width="20" height="20" x="35" y="35" fill="white"/><rect width="40" height="40" x="135" y="25" fill="%230f172a"/><rect width="20" height="20" x="145" y="35" fill="white"/><rect width="40" height="40" x="25" y="135" fill="%230f172a"/><rect width="20" height="20" x="35" y="145" fill="white"/><rect width="20" height="20" x="85" y="85" fill="%230f172a"/><rect width="20" height="20" x="105" y="105" fill="%230f172a"/><text x="60" y="180" fill="%230284c7" font-size="11" font-weight="bold">PROMPTPAY QR</text></svg>`;
+const MOCK_QRCODE_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" style="background-color:#e0f2fe;font-family:sans-serif;"><rect width="180" height="180" x="10" y="10" rx="10" fill="white" stroke="#0284c7" stroke-width="2"/><rect width="40" height="40" x="25" y="25" fill="#0f172a"/><rect width="20" height="20" x="35" y="35" fill="white"/><rect width="40" height="40" x="135" y="25" fill="#0f172a"/><rect width="20" height="20" x="145" y="35" fill="white"/><rect width="40" height="40" x="25" y="135" fill="#0f172a"/><rect width="20" height="20" x="35" y="145" fill="white"/><rect width="20" height="20" x="85" y="85" fill="#0f172a"/><rect width="20" height="20" x="105" y="105" fill="#0f172a"/><text x="60" y="180" fill="#0284c7" font-size="11" font-weight="bold">PROMPTPAY QR</text></svg>');
 
-const MOCK_SLIP_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" style="background-color:%23dcfce7;font-family:sans-serif;"><rect width="180" height="240" x="10" y="10" rx="12" fill="white" stroke="%2322c55e" stroke-width="3"/><circle cx="100" cy="55" r="25" fill="%2322c55e" opacity="0.2"/><path d="M90 55 L97 62 L112 47" fill="none" stroke="%2322c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="50" y="105" fill="%23166534" font-size="14" font-weight="bold">E-SLIP SUCCESS</text><text x="30" y="135" fill="%234b5563" font-size="10">Sender: Welfare Pres.</text><text x="30" y="155" fill="%234b5563" font-size="10">Bank: PromptPay App</text><line x1="25" y1="180" x2="175" y2="180" stroke="%23e5e7eb" stroke-width="1"/><text x="30" y="210" fill="%23111827" font-size="13" font-weight="bold">AMOUNT</text><text x="110" y="210" fill="%2322c55e" font-size="13" font-weight="bold">TRANSFERED</text></svg>`;
+const MOCK_SLIP_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 200 260" style="background-color:#dcfce7;font-family:sans-serif;"><rect width="180" height="240" x="10" y="10" rx="12" fill="white" stroke="#22c55e" stroke-width="3"/><circle cx="100" cy="55" r="25" fill="#22c55e" opacity="0.2"/><path d="M90 55 L97 62 L112 47" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="50" y="105" fill="#166534" font-size="14" font-weight="bold">E-SLIP SUCCESS</text><text x="30" y="135" fill="#4b5563" font-size="10">Sender: Welfare Pres.</text><text x="30" y="155" fill="#4b5563" font-size="10">Bank: PromptPay App</text><line x1="25" y1="180" x2="175" y2="180" stroke="#e5e7eb" stroke-width="1"/><text x="30" y="210" fill="#111827" font-size="13" font-weight="bold">AMOUNT</text><text x="110" y="210" fill="#22c55e" font-size="13" font-weight="bold">TRANSFERED</text></svg>');
 
 // App State (Dedicated to Pink Team, completely empty initial values)
 let state = {
@@ -2354,13 +2360,13 @@ function renderPendingQueue() {
                 
                 const receiptsHtml = receiptsList.map((src, i) => `
                     <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
-                        <img src="${src}" onclick="viewImage('${src}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Receipt ${i+1}">
+                        <img src="${safeImgAttr(src)}" onclick="viewImage('${safeImgAttr(src)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Receipt ${i+1}">
                     </div>
                 `).join('');
                 
                 const productsHtml = productsList.map((src, i) => `
                     <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
-                        <img src="${src}" onclick="viewImage('${src}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Product ${i+1}">
+                        <img src="${safeImgAttr(src)}" onclick="viewImage('${safeImgAttr(src)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Product ${i+1}">
                     </div>
                 `).join('');
 
@@ -2453,12 +2459,15 @@ function renderLogsList() {
                 const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
                 
                 let receiptsThumbs = receiptsList.map(src => `
-                    <img src="${src}" class="log-img-thumb" onclick="viewImage('${src}')">
+                    <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
                 `).join('');
                 
                 let productsThumbs = productsList.map(src => `
-                    <img src="${src}" class="log-img-thumb" onclick="viewImage('${src}')">
+                    <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
                 `).join('');
+
+                const qrSrc = req.qrcode || MOCK_QRCODE_SVG;
+                const slipSrc = req.transferSlip;
 
                 imageRowMarkup = `
                     <div class="log-thumbs-row">
@@ -2471,12 +2480,12 @@ function renderLogsList() {
                             <span>2. สินค้า</span>
                         </div>
                         <div class="log-thumb-wrapper">
-                            <img src="${req.qrcode || MOCK_QRCODE_SVG}" class="log-img-thumb" onclick="viewImage('${req.qrcode || MOCK_QRCODE_SVG}')">
+                            <img src="${safeImgAttr(qrSrc)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(qrSrc)}')">
                             <span>3. QR รับเงิน</span>
                         </div>
-                        ${req.transferSlip ? `
+                        ${slipSrc ? `
                         <div class="log-thumb-wrapper">
-                            <img src="${req.transferSlip}" class="log-img-thumb" style="border-color:var(--accent-success);" onclick="viewImage('${req.transferSlip}')">
+                            <img src="${safeImgAttr(slipSrc)}" class="log-img-thumb" style="border-color:var(--accent-success);" onclick="viewImage('${safeImgAttr(slipSrc)}')">
                             <span style="color:var(--accent-success); font-weight:600;">4. สลิปโอน</span>
                         </div>
                         ` : ''}
