@@ -47,6 +47,11 @@ function mapToPostgres(tableName, docData) {
         mapped.request_id = mapped.requestId;
         delete mapped.requestId;
     }
+    if (mapped.reporterName !== undefined) {
+        mapped.reporter = mapped.reporterName + (mapped.reporterRole ? ' (' + mapped.reporterRole + ')' : '');
+        delete mapped.reporterName;
+        delete mapped.reporterRole;
+    }
     if (tableName === 'logs' && mapped.desc !== undefined) {
         mapped.desc_text = mapped.desc;
         delete mapped.desc;
@@ -89,6 +94,17 @@ function mapFromPostgres(tableName, rowData) {
     if (mapped.request_id !== undefined) {
         mapped.requestId = mapped.request_id;
         delete mapped.request_id;
+    }
+    if (mapped.reporter !== undefined && !mapped.reporterName) {
+        const match = mapped.reporter.match(/^(.+?)\s*\((.+?)\)$/);
+        if (match) {
+            mapped.reporterName = match[1].trim();
+            mapped.reporterRole = match[2].trim();
+        } else {
+            mapped.reporterName = mapped.reporter;
+            mapped.reporterRole = '';
+        }
+        delete mapped.reporter;
     }
     if (rowData.desc_text !== undefined) {
         mapped.desc = rowData.desc_text;
