@@ -887,15 +887,40 @@ function downloadQR(src, name) {
     document.body.removeChild(link);
 }
 
+// Helper: Create lightweight state copy without heavy base64 images for LocalStorage
+function getLightweightState(fullState) {
+    if (!fullState) return fullState;
+    try {
+        const light = JSON.parse(JSON.stringify(fullState));
+        if (light.requests) {
+            light.requests.forEach(r => {
+                if (r.receipt && r.receipt.length > 500) delete r.receipt;
+                if (r.receipts) r.receipts = r.receipts.map(src => (src && src.length > 500) ? MOCK_RECEIPT_SVG : src);
+                if (r.productPhoto && r.productPhoto.length > 500) delete r.productPhoto;
+                if (r.productPhotos) r.productPhotos = r.productPhotos.map(src => (src && src.length > 500) ? MOCK_PRODUCT_SVG : src);
+                if (r.transferSlip && r.transferSlip.length > 500) delete r.transferSlip;
+                if (r.qrcode && r.qrcode.length > 500) r.qrcode = MOCK_QRCODE_SVG;
+            });
+        }
+        return light;
+    } catch (e) {
+        return fullState;
+    }
+}
+
 // Database-supported Save & Load Handlers (Firebase, IndexedDB & LocalStorage fallback)
 function saveToLocalStorage() {
-    // 1. Save to LocalStorage immediately with try-catch to handle quota limits
+    // 1. Save to LocalStorage with lightweight fallback on QuotaExceededError
     try {
         localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(state));
     } catch (e) {
-        console.error("LocalStorage save failed:", e);
         if (e.name === 'QuotaExceededError' || e.code === 22 || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            console.warn("LocalStorage quota exceeded. System is using IndexedDB backup instead.");
+            try {
+                const lightState = getLightweightState(state);
+                localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(lightState));
+            } catch (err) {
+                // Silent catch: Full state is stored safely in IndexedDB and Supabase Cloud
+            }
         }
     }
     
@@ -1044,12 +1069,15 @@ function loadFromDatabase(callback, isRetry = false) {
         
         const fbTimeout = setTimeout(() => {
             if (!hasLoaded) {
+                hasLoaded = true;
                 console.warn("⚠️ Supabase connection timed out. Proceeding with local data...");
                 useFirebase = false;
                 firstCallbackDone = true;
+                const offlineBanner = document.getElementById('offline-banner');
+                if (offlineBanner) offlineBanner.style.display = 'block';
                 callback();
             }
-        }, 6000); // 6 seconds timeout to handle mobile network latency in crowded environments
+        }, 10000); // 10 seconds timeout for mobile network latency
 
         // Fetch all collections
         Promise.all([
