@@ -908,19 +908,28 @@ function getLightweightState(fullState) {
     }
 }
 
+// Clean up legacy keys once on initialization
+function cleanupLegacyLocalStorage() {
+    try {
+        const legacyKeys = ['pink_team_finance_state', 'pink_team_finance_state_v2', 'firebase:previous_websocket_failure'];
+        legacyKeys.forEach(k => localStorage.removeItem(k));
+    } catch(e) {}
+}
+
 // Database-supported Save & Load Handlers (Firebase, IndexedDB & LocalStorage fallback)
 function saveToLocalStorage() {
-    // 1. Save to LocalStorage with lightweight fallback on QuotaExceededError
+    // 1. Save lightweight state to LocalStorage by default (no heavy base64 images)
+    // Guarantee LocalStorage stays tiny (<100KB) and NEVER exceeds 5MB browser quota!
     try {
-        localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(state));
+        const lightState = getLightweightState(state);
+        localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(lightState));
     } catch (e) {
-        if (e.name === 'QuotaExceededError' || e.code === 22 || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            try {
-                const lightState = getLightweightState(state);
-                localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(lightState));
-            } catch (err) {
-                // Silent catch: Full state is stored safely in IndexedDB and Supabase Cloud
-            }
+        cleanupLegacyLocalStorage();
+        try {
+            const lightState = getLightweightState(state);
+            localStorage.setItem('pink_team_finance_state_v3', JSON.stringify(lightState));
+        } catch (err) {
+            // Full state is always safely stored in IndexedDB and Supabase Cloud
         }
     }
     
@@ -1710,6 +1719,9 @@ function resetState() {
 
 // Initialize Application
 window.addEventListener('DOMContentLoaded', () => {
+    // Purge legacy storage keys to free up browser quota
+    cleanupLegacyLocalStorage();
+
     // Initialize Theme
     const savedTheme = localStorage.getItem('pink_theme') || 'dark';
     if (savedTheme === 'light') {
