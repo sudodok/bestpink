@@ -252,32 +252,12 @@
 
         <!-- TAB 1: Dashboard View -->
         <div id="dashboard-view" class="tab-content active">
-            <div class="grid-2col">
+            <div style="display: block;">
                 <!-- Department Progress bars (Allocated vs Spent) -->
-                <div class="panel-card">
+                <div class="panel-card" style="width: 100%;">
                     <h2 class="panel-title"><i class="fa-solid fa-sliders"></i> งบประมาณจำแนกตามฝ่ายงาน (สีชมพู)</h2>
                     <div id="department-budget-list" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem;">
                         <!-- Progress bars rendered dynamically -->
-                    </div>
-                </div>
-
-                <!-- Recent Transactions (Incomes & Approved expenses) -->
-                <div class="panel-card">
-                    <h2 class="panel-title"><i class="fa-solid fa-list-ul"></i> รายการเดินบัญชีล่าสุด</h2>
-                    <div class="table-container table-scroll-y">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>วันเวลา</th>
-                                    <th>รายการ / ฝ่าย</th>
-                                    <th>จำนวนเงิน</th>
-                                    <th>สลิปโอน</th>
-                                </tr>
-                            </thead>
-                            <tbody id="recent-transactions-table">
-                                <!-- Populated dynamically -->
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
@@ -414,8 +394,36 @@
             </div>
         </div>
 
-        <!-- TAB 4: Audit Logs & Budget Settings -->
+        <!-- TAB 4: Logs View (ประวัติ & สลิปโอนเงิน) -->
         <div id="logs-view" class="tab-content">
+            <!-- Approved Reimbursements & Transfer Slip Management Panel -->
+            <div class="panel-card" style="margin-bottom: 1.5rem;">
+                <h2 class="panel-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                    <span><i class="fa-solid fa-receipt"></i> ประวัติเฉพาะการขอเบิกและสลิปโอนเงิน</span>
+                    <span style="font-size:0.8rem; font-weight:normal; color:var(--text-secondary);">
+                        <i class="fa-solid fa-circle-info"></i> ประธาน/ผู้ดูแลระบบสามารถแนบหรือแก้ไขสลิปการโอนเงินย้อนหลังได้ตลอดเวลา
+                    </span>
+                </h2>
+                <div class="table-container table-scroll-y">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วันเวลาอนุมัติ</th>
+                                <th>ผู้ขอเบิก / ฝ่ายงาน</th>
+                                <th>รายการสินค้า</th>
+                                <th>เอกสารใบเสร็จ & รูปสินค้า</th>
+                                <th>จำนวนเงิน</th>
+                                <th>สลิปโอนเงิน</th>
+                                <th>การจัดการสลิป</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approved-reimbursements-table">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="grid-2col">
                 <!-- Logs History -->
                 <div class="panel-card">
@@ -654,28 +662,6 @@
                             </button>
                         </div>
                     </form>
-
-                    <!-- Adjust Initial Balances Form -->
-                    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
-                        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;"><i class="fa-solid fa-coins"></i> ตั้งค่าเงินตั้งต้น (Starting Balance)</h3>
-                        <form id="acc-initial-balance-form" onsubmit="handleSaveInitialBalances(event)">
-                            <div class="form-row-2col">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="acc-init-cash" style="font-size: 0.8rem;">เงินสดตั้งต้น (บาท)</label>
-                                    <input type="number" id="acc-init-cash" class="form-control" min="0" step="0.01" placeholder="0.00">
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="acc-init-bank" style="font-size: 0.8rem;">เงินในบัญชีตั้งต้น (บาท)</label>
-                                    <input type="number" id="acc-init-bank" class="form-control" min="0" step="0.01" placeholder="0.00">
-                                </div>
-                            </div>
-                            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                                <button type="submit" class="btn btn-primary" style="width: auto; min-height: auto; padding: 0.4rem 1rem; font-size: 0.85rem;">
-                                    <i class="fa-solid fa-save"></i> บันทึกเงินตั้งต้น
-                                </button>
-                            </div>
-                        </form>
-                    </div>
                 </div>
 
                 <!-- Transaction Ledger List -->
@@ -692,6 +678,9 @@
                         </select>
                         <button class="btn btn-success" onclick="exportToExcel()" style="width: auto; padding: 0.5rem 0.8rem; font-size: 0.85rem;" title="ส่งออกข้อมูลเป็น Excel">
                             <i class="fa-solid fa-file-excel"></i> ส่งออก Excel
+                        </button>
+                        <button class="btn btn-primary" onclick="exportToHTMLReport()" style="width: auto; padding: 0.5rem 0.8rem; font-size: 0.85rem; background: linear-gradient(135deg, #ec4899, #d946ef); border: none;" title="ส่งออกเป็นไฟล์รายงาน HTML ดูรูปภาพได้ทุกอุปกรณ์">
+                            <i class="fa-solid fa-file-code"></i> รายงานพร้อมรูปภาพ (HTML)
                         </button>
                         <button class="btn" onclick="exportToPDF()" style="width: auto; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; font-size: 0.85rem;" title="พิมพ์รายงานเป็น PDF">
                             <i class="fa-solid fa-file-pdf"></i> พิมพ์ PDF
@@ -916,8 +905,44 @@
         </div>
     </div>
 
+    <!-- Modal for attaching transfer slip later -->
+    <div id="attach-slip-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <button class="close-modal" onclick="closeAttachSlipModal()">&times;</button>
+            <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-file-invoice-dollar"></i> แนบ/แก้ไข สลิปการโอนเงินย้อนหลัง</h3>
+            
+            <form id="attach-slip-form" onsubmit="handleSaveAttachedSlip(event)">
+                <input type="hidden" id="attach-slip-req-id">
+                
+                <div id="attach-slip-info" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                    <!-- Populated dynamically via script -->
+                </div>
+
+                <div class="form-group">
+                    <label style="font-weight:600;">เลือกภาพสลิปโอนเงิน *</label>
+                    <div class="upload-container small-container" onclick="triggerUpload('upload-attach-slip-input')">
+                        <i class="fa-solid fa-file-image upload-icon"></i>
+                        <p>กดเพื่อเลือกไฟล์สลิปการโอนเงิน</p>
+                        <input type="file" id="upload-attach-slip-input" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'attach-slip-preview')">
+                        <div id="attach-slip-preview" class="upload-preview" onclick="event.stopPropagation()">
+                            <img src="" alt="Slip Preview" onclick="viewImage(this.src)" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                            <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-attach-slip-input', 'attach-slip-preview')">&times;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn" style="background: var(--bg-tertiary);" onclick="closeAttachSlipModal()">ยกเลิก</button>
+                    <button type="submit" id="btn-save-attach-slip" class="btn btn-success">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกสลิปโอนเงิน
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Custom Alert Modal -->
-    <div id="custom-alert-modal" class="modal">
+    <div id="custom-alert-modal" class="modal" style="z-index: 10050 !important;">
         <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem; border-radius: 1.25rem;">
             <div id="custom-alert-icon" style="font-size: 3.5rem; margin-bottom: 1.25rem;"></div>
             <h3 id="custom-alert-title" style="margin-bottom: 0.75rem; font-size: 1.35rem; color: var(--text-primary); font-family: var(--font-sans);">แจ้งเตือน</h3>
@@ -927,7 +952,7 @@
     </div>
 
     <!-- Custom Confirm Modal -->
-    <div id="custom-confirm-modal" class="modal">
+    <div id="custom-confirm-modal" class="modal" style="z-index: 10050 !important;">
         <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem; border-radius: 1.25rem;">
             <div style="font-size: 3.5rem; color: #f59e0b; margin-bottom: 1.25rem;">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -942,7 +967,7 @@
     </div>
 
     <!-- Custom Prompt Modal -->
-    <div id="custom-prompt-modal" class="modal">
+    <div id="custom-prompt-modal" class="modal" style="z-index: 10050 !important;">
         <div class="modal-content" style="max-width: 450px; padding: 2rem; border-radius: 1.25rem;">
             <h3 id="custom-prompt-title" style="margin-bottom: 1.25rem; font-size: 1.35rem; color: var(--text-primary); text-align: center; font-family: var(--font-sans);">กรอกข้อมูล</h3>
             <div class="form-group" style="margin-bottom: 1.75rem;">

@@ -483,29 +483,30 @@ function exportToExcel() {
         const rows = sorted.map((t, idx) => {
             let formattedDate = t.date;
             try {
-                formattedDate = new Date(t.date).toLocaleDateString('th-TH');
+                formattedDate = formatDateTime(t.date);
             } catch(e) {}
             
             return {
                 "ลำดับ": idx + 1,
-                "วันที่": formattedDate,
+                "วันเวลา": formattedDate,
                 "ประเภทรายการ": t.type === 'income' ? '📈 รายรับ' : '📉 รายจ่าย',
                 "ประเภทเงิน": t.wallet === 'cash' ? '💵 เงินสด' : '🏦 เงินโอน',
+                "ผู้ขอเบิก / แหล่งเงิน": t.actor || '-',
                 "รายละเอียด": t.desc,
                 "จำนวนเงิน (บาท)": t.amount
             };
         });
         
         const ws = XLSX.utils.json_to_sheet(rows);
-        const wscols = [
+        ws['!cols'] = [
             { wch: 8 },  // ลำดับ
-            { wch: 15 }, // วันที่
+            { wch: 18 }, // วันเวลา
             { wch: 15 }, // ประเภทรายการ
             { wch: 15 }, // ประเภทเงิน
+            { wch: 22 }, // ผู้ขอเบิก
             { wch: 45 }, // รายละเอียด
             { wch: 18 }  // จำนวนเงิน
         ];
-        ws['!cols'] = wscols;
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "บัญชีรายรับรายจ่าย");
@@ -516,9 +517,6 @@ function exportToExcel() {
         hideLoader();
         showCustomAlert("ส่งออกไฟล์ Excel สำเร็จ!", "success");
     } catch(err) {
-        console.error("Excel export error:", err);
-        hideLoader();
-        showCustomAlert("เกิดข้อผิดพลาดในการสร้างไฟล์ Excel", "error");
     }
 }
 
@@ -528,6 +526,208 @@ function exportToPDF() {
         return;
     }
     window.print();
+}
+
+function exportToHTMLReport() {
+    if ((!state.transactions || state.transactions.length === 0) && (!state.requests || state.requests.length === 0)) {
+        showCustomAlert("ไม่มีข้อมูลที่จะส่งออกรายงาน HTML", "error");
+        return;
+    }
+
+    showLoader("กำลังสร้างรายงานรูปภาพ HTML...", "ระบบกำลังประมวลผลตารางรูปภาพทั้งหมดลงในไฟล์ HTML สรุป...");
+
+    setTimeout(() => {
+        try {
+            const sortedTx = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            let txRowsHtml = sortedTx.map((t, idx) => {
+                let matchingReq = null;
+                if (t.id && t.id.startsWith('tx-exp-')) {
+                    const reqId = t.id.replace('tx-exp-', '');
+                    matchingReq = state.requests.find(r => r.id === reqId);
+                }
+                if (!matchingReq && t.type === 'expense') {
+                    matchingReq = state.requests.find(r => r.amount === t.amount && r.item === t.desc);
+                }
+
+                let receiptsImgs = '';
+                let productsImgs = '';
+                let slipImg = t.slip || (matchingReq ? matchingReq.transferSlip : '') || '';
+                let qrImg = matchingReq ? (matchingReq.qrcode || '') : '';
+                let applicantName = t.actor || (matchingReq ? matchingReq.name : '-');
+
+                if (matchingReq) {
+                    const receiptsList = matchingReq.receipts || [matchingReq.receipt];
+                    receiptsImgs = receiptsList.filter(Boolean).map(src => `<img src="${safeImgAttr(src)}" class="thumb" onclick="openFullImg(this.src)" title="คลิกเพื่อดูรูปใหญ่">`).join(' ');
+
+                    const productsList = matchingReq.productPhotos || [matchingReq.productPhoto];
+                    productsImgs = productsList.filter(Boolean).map(src => `<img src="${safeImgAttr(src)}" class="thumb" onclick="openFullImg(this.src)" title="คลิกเพื่อดูรูปใหญ่">`).join(' ');
+                }
+
+                const slipImgHtml = slipImg ? `<img src="${safeImgAttr(slipImg)}" class="thumb" onclick="openFullImg(this.src)" title="คลิกเพื่อดูรูปใหญ่">` : '-';
+                const qrImgHtml = qrImg ? `<img src="${safeImgAttr(qrImg)}" class="thumb" onclick="openFullImg(this.src)" title="คลิกเพื่อดูรูปใหญ่">` : '-';
+
+                return `
+                    <tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td>${formatDateTime(t.date)}</td>
+                        <td style="text-align:center;"><span class="badge ${t.type === 'income' ? 'bg-success' : 'bg-danger'}">${t.type === 'income' ? 'รายรับ' : 'รายจ่าย'}</span></td>
+                        <td style="text-align:center;">${t.wallet === 'cash' ? '💵 เงินสด' : '🏦 เงินโอน'}</td>
+                        <td>${escapeHTML(applicantName)}</td>
+                        <td>${escapeHTML(t.desc)}</td>
+                        <td style="font-weight:bold; color:${t.type==='income'?'#059669':'#dc2626'}; text-align:right;">฿${(t.amount || 0).toLocaleString('th-TH', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:center;">${receiptsImgs || '-'}</td>
+                        <td style="text-align:center;">${productsImgs || '-'}</td>
+                        <td style="text-align:center;">${slipImgHtml}</td>
+                        <td style="text-align:center;">${qrImgHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const htmlContent = `<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงานสรุปบัญชีและรูปภาพสลิป - สีชมพู</title>
+    <style>
+        body { font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif; background: #fdf2f8; color: #334155; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        h1 { color: #db2777; margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.6rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; vertical-align: middle; }
+        th { background: #fce7f3; color: #9d174d; font-weight: 600; text-align: center; }
+        tr:nth-child(even) { background: #fff5f8; }
+        .thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid #f472b6; transition: transform 0.2s; }
+        .thumb:hover { transform: scale(1.2); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .badge { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .bg-success { background: #d1fae5; color: #065f46; }
+        .bg-danger { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 รายงานสรุปบัญชีเดินรายการพร้อมรูปภาพสลิปและใบเสร็จ (คลังสีชมพู)</h1>
+        <p style="color:#64748b;">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')} | คลิกที่รูปภาพเพื่อเปิดดูรูปใหญ่แบบขยายเต็มหน้าจอ</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>ลำดับ</th>
+                    <th>วันเวลา</th>
+                    <th>ประเภท</th>
+                    <th>กระเป๋า</th>
+                    <th>ผู้ขอเบิก/แหล่งเงิน</th>
+                    <th>รายละเอียด</th>
+                    <th>จำนวนเงิน</th>
+                    <th>ใบเสร็จ</th>
+                    <th>สินค้า</th>
+                    <th>สลิปโอน</th>
+                    <th>QR Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${txRowsHtml}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Fullscreen Image View Modal Overlay -->
+    <div id="imgModal" onclick="this.style.display='none'" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center; cursor:pointer;">
+        <img id="imgModalTarget" style="max-width:90%; max-height:90%; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    </div>
+
+    <script>
+        function openFullImg(src) {
+            var modal = document.getElementById('imgModal');
+            var target = document.getElementById('imgModalTarget');
+            if (modal && target) {
+                target.src = src;
+                modal.style.display = 'flex';
+            }
+        }
+    </script>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const dateStr = new Date().toLocaleDateString('th-TH').replace(/\//g, '_');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `รายงานบัญชีและสลิปรูปภาพ_${dateStr}.html`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            hideLoader();
+            showCustomAlert("ดาวน์โหลดรายงาน HTML พร้อมรูปภาพเรียบร้อยแล้ว!", "success");
+        } catch (err) {
+            console.error("HTML Report export error:", err);
+            hideLoader();
+            showCustomAlert("เกิดข้อผิดพลาดในการสร้างไฟล์รายงาน HTML: " + err.message, "error");
+        }
+    }, 100);
+}
+
+function openBase64ViewerModal() {
+    const modal = document.getElementById('base64-viewer-modal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeBase64ViewerModal() {
+    const modal = document.getElementById('base64-viewer-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function clearBase64ViewerInput() {
+    const txt = document.getElementById('base64-input-text');
+    if (txt) txt.value = '';
+    const res = document.getElementById('base64-viewer-result');
+    if (res) res.style.display = 'none';
+}
+
+function renderBase64ImageFromInput() {
+    let raw = (document.getElementById('base64-input-text').value || '').trim();
+    if (!raw) {
+        showCustomAlert("กรุณาวางข้อความรูปภาพหรือ Base64 ก่อนกดแสดงรูปภาพ");
+        return;
+    }
+
+    // Clean outer quotes, newlines, spaces
+    let val = raw.replace(/^["']|["']$/g, '').replace(/[\r\n\s]/g, '').trim();
+
+    let fullDataUrl = val;
+
+    if (val.startsWith('data:image/svg+xml')) {
+        fullDataUrl = val;
+    } else if (val.startsWith('data:image/') || val.startsWith('data:application/')) {
+        fullDataUrl = val.replace(/^(data:image\/[^;]+;base64,)+/gi, 'data:image/jpeg;base64,');
+    } else if (val.startsWith('http://') || val.startsWith('https://')) {
+        fullDataUrl = val;
+    } else {
+        val = val.replace(/^,+/g, '').trim();
+        const mod = val.length % 4;
+        if (mod === 2) val += '==';
+        else if (mod === 3) val += '=';
+        fullDataUrl = 'data:image/jpeg;base64,' + val;
+    }
+
+    const img = document.getElementById('base64-viewer-img');
+    const res = document.getElementById('base64-viewer-result');
+    if (img && res) {
+        img.removeAttribute('src');
+        img.onerror = () => {
+            res.style.display = 'none';
+            showCustomAlert("ไม่สามารถแสดงรูปภาพได้: ข้อความรูปภาพไม่ถูกต้อง หรือรูปแบบไม่สมบูรณ์", "error");
+        };
+        img.onload = () => {
+            res.style.display = 'block';
+        };
+        img.src = fullDataUrl;
+        img.onclick = () => {
+            if (typeof viewImage === 'function') viewImage(fullDataUrl);
+        };
+    }
 }
 
 // Helper function to safely escape image URLs for HTML inline onclick and src attributes
@@ -1052,21 +1252,10 @@ function sanitizeState() {
     if (!state.requests) state.requests = [];
     if (!state.logs) state.logs = [];
     if (!state.issues) state.issues = [];
-    if (!state.members || state.members.length === 0) {
+    if (!state.members) {
         state.members = [...MEMBERS];
         state.membersVersion = 5;
         state.membersLastUpdated = Date.now();
-    } else {
-        const CURRENT_MEMBERS_VERSION = 5;
-        if ((state.membersVersion || 0) < CURRENT_MEMBERS_VERSION) {
-            state.members = [...MEMBERS];
-            state.membersVersion = CURRENT_MEMBERS_VERSION;
-            state.membersLastUpdated = Date.now();
-            saveToLocalStorage();
-            if (useFirebase && db) {
-                syncItemToFirebase('settings', 'members', { list: state.members, lastUpdated: state.membersLastUpdated });
-            }
-        }
     }
 }
 
@@ -1583,8 +1772,8 @@ function clearFirebaseDatabase() {
 
 // Handle system database reset click
 function handleSystemReset() {
-    if (!state.user || state.user.role !== 'president' || state.user.username !== 'admin') {
-        showCustomAlert("เฉพาะผู้ดูแลระบบหลัก (username: admin) เท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
+    if (!isUserPresidentOrAdmin()) {
+        showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบเท่านั้นที่มีสิทธิ์ล้างฐานข้อมูลระบบได้");
         return;
     }
     
@@ -2163,11 +2352,245 @@ function togglePasswordVisibility(inputId, btnEl) {
     }
 }
 
-// UI Rendering Controller
+// Helper to check if current logged in user is President or Admin
+function isUserPresidentOrAdmin() {
+    if (!state.user) return false;
+    return (
+        state.user.role === 'president' || 
+        state.user.role === 'admin' || 
+        state.user.username === 'admin' || 
+        state.user.name === 'ผู้ดูแลระบบ'
+    );
+}
+
+// Render Approved Reimbursements History Table & Transfer Slip Manager
+function renderApprovedReimbursementsTable() {
+    const tbody = document.getElementById('approved-reimbursements-table');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    // Get all approved requests
+    const approvedRequests = state.requests.filter(req => req.status === 'approved');
+    approvedRequests.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (approvedRequests.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">ยังไม่มีประวัติรายการขอเบิกที่ได้รับการอนุมัติ</td></tr>`;
+        return;
+    }
+
+    const isPresidentOrAdmin = isUserPresidentOrAdmin();
+
+    approvedRequests.forEach(req => {
+        const tr = document.createElement('tr');
+
+        // Receipts & Product Photos thumbnails
+        const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
+        const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
+
+        const receiptsThumbs = receiptsList.map(src => `
+            <img src="${safeImgAttr(src)}" class="log-img-thumb" style="width:32px; height:32px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="viewImage('${safeImgAttr(src)}')" title="คลิกเพื่อดูภาพใบเสร็จ">
+        `).join('');
+
+        const productsThumbs = productsList.map(src => `
+            <img src="${safeImgAttr(src)}" class="log-img-thumb" style="width:32px; height:32px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="viewImage('${safeImgAttr(src)}')" title="คลิกเพื่อดูภาพสินค้า">
+        `).join('');
+
+        const docsMarkup = `
+            <div style="display:flex; flex-direction:column; gap:0.35rem; font-size:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.3rem;">
+                    <span style="color:var(--text-muted); font-size:0.7rem; min-width:45px;">📄 ใบเสร็จ:</span>
+                    <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">${receiptsThumbs}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.3rem;">
+                    <span style="color:var(--text-muted); font-size:0.7rem; min-width:45px;">🛍️ สินค้า:</span>
+                    <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">${productsThumbs}</div>
+                </div>
+            </div>
+        `;
+
+        let slipDisplay = '';
+        if (req.transferSlip) {
+            slipDisplay = `
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <img src="${safeImgAttr(req.transferSlip)}" class="log-img-thumb" style="width:36px; height:36px; border-color:var(--accent-success); cursor:pointer;" onclick="viewImage('${safeImgAttr(req.transferSlip)}')">
+                    <span class="badge badge-approved" style="font-size:0.7rem;"><i class="fa-solid fa-check"></i> มีสลิปแล้ว</span>
+                </div>
+            `;
+        } else {
+            slipDisplay = `<span class="badge badge-pending" style="font-size:0.7rem; background:rgba(234, 88, 12, 0.15); color:#f97316;"><i class="fa-solid fa-clock"></i> ยังไม่แนบสลิป</span>`;
+        }
+
+        let actionBtn = '';
+        if (isPresidentOrAdmin) {
+            if (req.transferSlip) {
+                actionBtn = `
+                    <button type="button" class="btn" style="width:auto; min-height:auto; padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color);" onclick="openAttachSlipModal('${req.id}')">
+                        <i class="fa-solid fa-pen-to-square"></i> แก้ไขสลิป
+                    </button>
+                `;
+            } else {
+                actionBtn = `
+                    <button type="button" class="btn btn-success" style="width:auto; min-height:auto; padding:0.35rem 0.65rem; font-size:0.75rem;" onclick="openAttachSlipModal('${req.id}')">
+                        <i class="fa-solid fa-plus-circle"></i> แนบสลิปโอนเงินทีหลัง
+                    </button>
+                `;
+            }
+        } else {
+            actionBtn = `
+                <button type="button" class="btn" style="width:auto; min-height:auto; padding:0.35rem 0.65rem; font-size:0.75rem; background:rgba(255,255,255,0.04); color:var(--text-muted);" onclick="openAttachSlipModal('${req.id}')">
+                    <i class="fa-solid fa-file-invoice"></i> ดู/จัดการสลิป
+                </button>
+            `;
+        }
+
+        tr.innerHTML = `
+            <td style="font-size: 0.8rem; color: var(--text-muted);">${formatDateTime(req.date)}</td>
+            <td>
+                <div style="font-weight: 600;">${escapeHTML(req.name)}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">${getDeptDisplayName(req.department)}</div>
+            </td>
+            <td>
+                <div style="font-weight: 500;">${escapeHTML(req.item)}</div>
+                ${req.memo ? `<div style="font-size:0.75rem; color:var(--text-secondary);">หมายเหตุ: ${escapeHTML(req.memo)}</div>` : ''}
+            </td>
+            <td>${docsMarkup}</td>
+            <td class="amount-col" style="font-weight: 600; color:var(--accent-danger);">- ${formatCurrency(req.amount)}</td>
+            <td>${slipDisplay}</td>
+            <td>${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Modal controls to attach/update transfer slip later
+function openAttachSlipModal(reqId) {
+    const req = state.requests.find(r => r.id === reqId);
+    if (!req) {
+        showCustomAlert("ไม่พบข้อมูลใบเบิกในระบบ");
+        return;
+    }
+
+    const reqIdInput = document.getElementById('attach-slip-req-id');
+    if (reqIdInput) reqIdInput.value = req.id;
+    
+    const infoContainer = document.getElementById('attach-slip-info');
+    if (infoContainer) {
+        infoContainer.innerHTML = `
+            <div><strong>ผู้ขอเบิก:</strong> ${escapeHTML(req.name)} (${getDeptDisplayName(req.department)})</div>
+            <div><strong>รายการสินค้า:</strong> ${escapeHTML(req.item)}</div>
+            <div><strong>จำนวนเงินอนุมัติ:</strong> <span style="color:var(--accent-danger); font-weight:600;">฿${(req.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span></div>
+            <div><strong>วันเวลาส่งเบิก:</strong> ${formatDateTime(req.date)}</div>
+        `;
+    }
+
+    const form = document.getElementById('attach-slip-form');
+    if (form) form.reset();
+
+    const fileInput = document.getElementById('upload-attach-slip-input');
+    if (fileInput) fileInput.value = '';
+
+    const previewContainer = document.getElementById('attach-slip-preview');
+    if (previewContainer) {
+        const previewImg = previewContainer.querySelector('img');
+        if (req.transferSlip) {
+            if (previewImg) previewImg.src = safeImgAttr(req.transferSlip);
+            previewContainer.style.display = 'block';
+        } else {
+            if (previewImg) previewImg.src = '';
+            previewContainer.style.display = 'none';
+        }
+    }
+
+    const modal = document.getElementById('attach-slip-modal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeAttachSlipModal() {
+    const modal = document.getElementById('attach-slip-modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function handleSaveAttachedSlip(e) {
+    e.preventDefault();
+    if (!isUserPresidentOrAdmin()) {
+        showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่มีสิทธิ์แนบสลิปได้");
+        return;
+    }
+
+    const reqId = document.getElementById('attach-slip-req-id').value;
+    const req = state.requests.find(r => r.id === reqId);
+    if (!req) {
+        showCustomAlert("ไม่พบข้อมูลใบเบิกในระบบ");
+        return;
+    }
+
+    const previewImg = document.getElementById('attach-slip-preview') ? document.getElementById('attach-slip-preview').querySelector('img') : null;
+    const slipDataUrl = previewImg ? previewImg.src : '';
+
+    if (!slipDataUrl || slipDataUrl.length < 50) {
+        showCustomAlert("กรุณาเลือกหรืออัปโหลดรูปภาพสลิปการโอนเงิน");
+        return;
+    }
+
+    showLoader("กำลังบันทึกสลิปโอนเงิน...", "ระบบกำลังประมวลผลรูปภาพและซิงก์ประวัติลง Firebase...");
+
+    const saveSlip = (compressedSlip) => {
+        req.transferSlip = compressedSlip;
+        
+        // Also update matching transaction in state.transactions if exists
+        const tx = state.transactions ? state.transactions.find(t => t.id === 'tx-exp-' + req.id) : null;
+        if (tx) {
+            tx.slip = compressedSlip;
+            syncItemToFirebase('transactions', tx.id, tx);
+        }
+
+        saveToLocalStorage();
+
+        // Create log entry for audit trail
+        const newLog = {
+            id: 'log-' + Date.now(),
+            date: new Date().toISOString(),
+            type: 'approve',
+            actor: state.user ? state.user.name : 'ประธานสวัสดิการ',
+            desc: `แนบสลิปโอนเงินย้อนหลังเรียบร้อย: ของคุณ ${req.name} สำหรับ "${req.item}" ยอด ฿${(req.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${getDeptDisplayName(req.department)})`,
+            requestId: req.id,
+            _synced: false
+        };
+        state.logs.push(newLog);
+        saveToLocalStorage();
+
+        const p1 = syncItemToFirebase('requests', req.id, req);
+        const p2 = syncItemToFirebase('logs', newLog.id, newLog);
+
+        Promise.all([p1, p2]).then(() => {
+            closeAttachSlipModal();
+            renderAll(); // Updates Audit logs, Member history tab, Approved reimbursements table!
+            hideLoader();
+            showCustomAlert("บันทึกสลิปการโอนเงินเรียบร้อยแล้ว!", "success");
+        }).catch(err => {
+            console.error("Save attached slip sync error:", err);
+            hideLoader();
+            showCustomAlert("บันทึกลงฐานข้อมูลไม่สำเร็จ: " + err.message, "error");
+        });
+    };
+
+    if (slipDataUrl.startsWith('data:image')) {
+        compressImagePromise(slipDataUrl, 800, 800, 0.3).then(compressed => saveSlip(compressed));
+    } else {
+        saveSlip(slipDataUrl);
+    }
+}
+
+// Expose modal handlers to global scope
+window.openAttachSlipModal = openAttachSlipModal;
+window.closeAttachSlipModal = closeAttachSlipModal;
+window.handleSaveAttachedSlip = handleSaveAttachedSlip;
+
 function renderAll() {
     calculateAndRenderMetrics();
     renderDepartmentAllocations();
-    renderRecentTransactions();
+    renderApprovedReimbursementsTable();
     renderPendingQueue();
     renderLogsList();
     renderMemberHistory();
@@ -2903,8 +3326,8 @@ function handleRequestSubmit(event) {
 function handleIncomeSubmit(event) {
     event.preventDefault();
     
-    if (!state.user || state.user.role !== 'president') {
-        showCustomAlert('เฉพาะประธานสวัสดิการเท่านั้นที่บันทึกรายรับของสีชมพูได้');
+    if (!isUserPresidentOrAdmin()) {
+        showCustomAlert('เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบเท่านั้นที่บันทึกรายรับของสีชมพูได้');
         return;
     }
     
@@ -3804,7 +4227,7 @@ function renderTransactionsList() {
 
 function handleSaveTransaction(e) {
     e.preventDefault();
-    if (!state.user || state.user.role !== 'president') {
+    if (!isUserPresidentOrAdmin()) {
         showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่มีสิทธิ์บันทึกได้");
         return;
     }
@@ -3913,10 +4336,8 @@ function handleSaveTransaction(e) {
     const p2 = syncItemToFirebase('logs', newLog.id, newLog);
     
     Promise.all([p1, p2, ...syncPromises]).then(() => {
-        calculateAndRenderMetrics();
-        renderTransactionsView();
+        renderAll();
         renderTransactionsList();
-        renderDepartmentAllocations();
         cancelEditTransaction();
         hideLoader();
         showCustomAlert("บันทึกรายการรายรับ-รายจ่ายสำเร็จ!", "success");
@@ -4009,10 +4430,8 @@ function deleteTransaction(txId) {
         const p2 = syncItemToFirebase('logs', newLog.id, newLog);
 
         Promise.all([p1, p2, ...extraSyncPromises]).then(() => {
-            calculateAndRenderMetrics();
-            renderTransactionsView();
+            renderAll();
             renderTransactionsList();
-            renderDepartmentAllocations();
             hideLoader();
             showCustomAlert("ลบรายการเรียบร้อยแล้ว!", "success");
         }).catch(err => {
@@ -4026,7 +4445,7 @@ function deleteTransaction(txId) {
 // Handle Initial Balance Save form submission
 function handleSaveInitialBalances(e) {
     e.preventDefault();
-    if (!state.user || state.user.role !== 'president') {
+    if (!isUserPresidentOrAdmin()) {
         showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่มีสิทธิ์แก้ไขได้");
         return;
     }
@@ -4203,7 +4622,7 @@ function updateSplashProgress(percent, statusText) {
 
 // Delete an individual reported issue
 function deleteIssue(issueId) {
-    if (!state.user || state.user.role !== 'president') {
+    if (!isUserPresidentOrAdmin()) {
         showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่ลบได้");
         return;
     }
@@ -4239,7 +4658,7 @@ function deleteIssue(issueId) {
 
 // Delete all reported issues history
 function deleteAllIssues() {
-    if (!state.user || state.user.role !== 'president') {
+    if (!isUserPresidentOrAdmin()) {
         showCustomAlert("เฉพาะประธานสวัสดิการหรือผู้ดูแลระบบที่ลบได้");
         return;
     }
