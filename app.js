@@ -780,29 +780,83 @@ function exportToHTMLReport() {
 </body>
 </html>`;
 
-            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+            // Store htmlContent globally for download
+            window.latestHTMLReportContent = htmlContent;
 
-            // Open directly in a new tab for 1-tap mobile viewing
-            const reportWin = window.open(url, '_blank');
-            
-            // Also trigger download link
-            const link = document.createElement('a');
-            const dateStr = new Date().toLocaleDateString('th-TH').replace(/\//g, '_');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `รายงานบัญชีและสลิปรูปภาพ_${dateStr}.html`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Render directly into in-app modal
+            const modalBody = document.getElementById('html-report-modal-body');
+            const reportModal = document.getElementById('html-report-modal');
+            if (modalBody && reportModal) {
+                modalBody.innerHTML = `
+                    <div style="color: #db2777; font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; display:flex; align-items:center; gap:8px;">📊 รายงานสรุปบัญชีเดินรายการพร้อมรูปภาพสลิปและใบเสร็จ (คลังสีชมพู)</div>
+                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 15px;">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')} | คลิกที่รูปภาพเพื่อเปิดดูรูปใหญ่แบบขยายเต็มหน้าจอ</div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ลำดับ</th>
+                                    <th>วันเวลา</th>
+                                    <th>ประเภท</th>
+                                    <th>กระเป๋า</th>
+                                    <th>ผู้ขอเบิก/แหล่งเงิน</th>
+                                    <th>รายละเอียด</th>
+                                    <th>จำนวนเงิน</th>
+                                    <th>ใบเสร็จ</th>
+                                    <th>สินค้า</th>
+                                    <th>สลิปโอน</th>
+                                    <th>QR Code</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${txRowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="end-report-spacer" style="height: 350px; padding-top: 40px; text-align: center; color: #94a3b8; font-size: 0.85rem; border-top: 2px dashed #fbcfe8; margin-top: 30px;">
+                        ✨ <strong>สิ้นสุดรายงานสรุปบัญชีเดินรายการ</strong> ✨<br>
+                        <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px;">(พื้นที่ว่าง 350px สำหรับให้เลื่อนรายการด้านล่างสุดพ้นจากแถบ Safari บนมือถือ)</span>
+                    </div>
+                `;
+                reportModal.style.display = 'flex';
+            }
+
+            // Also attempt to open in new tab & trigger download fallback
+            try {
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } catch (e) {}
 
             hideLoader();
-            showCustomAlert("เปิดรายงานรูปภาพในหน้าต่างใหม่และส่งออกไฟล์เรียบร้อยแล้ว!", "success");
+            showCustomAlert("เปิดรายงานสรุปบัญชีเรียบร้อยแล้ว!", "success");
         } catch (err) {
             console.error("HTML Report export error:", err);
             hideLoader();
             showCustomAlert("เกิดข้อผิดพลาดในการสร้างไฟล์รายงาน HTML: " + err.message, "error");
         }
     }, 100);
+}
+
+function closeHTMLReportModal() {
+    const modal = document.getElementById('html-report-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function downloadCurrentHTMLReport() {
+    if (!window.latestHTMLReportContent) {
+        showCustomAlert("ไม่พบไฟล์รายงานสำหรับดาวน์โหลด", "error");
+        return;
+    }
+    const blob = new Blob([window.latestHTMLReportContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toLocaleDateString('th-TH').replace(/\//g, '_');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `รายงานบัญชีและสลิปรูปภาพ_${dateStr}.html`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showCustomAlert("ดาวน์โหลดไฟล์รายงานเรียบร้อยแล้ว!", "success");
 }
 
 function openBase64ViewerModal() {

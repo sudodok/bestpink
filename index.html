@@ -1025,6 +1025,28 @@
         </div>
     </div>
 
+    <!-- In-App Fullscreen HTML Report Modal View -->
+    <div id="html-report-modal" class="modal" style="display: none; z-index: 99999; align-items: flex-start; justify-content: center; padding: 0; background: rgba(0, 0, 0, 0.88); overflow-y: auto; -webkit-overflow-scrolling: touch;">
+        <div class="report-modal-wrapper" style="width: 100%; max-width: 1350px; min-height: 100vh; background: #fdf2f8; padding: 12px; padding-bottom: 400px; position: relative;">
+            <div style="position: sticky; top: 0; z-index: 1000; background: #ffffff; padding: 12px 18px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; border: 1px solid #fbcfe8;">
+                <div style="font-weight: 700; color: #db2777; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> รายงานสรุปบัญชีและรูปภาพสลิป
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="btn btn-primary" onclick="downloadCurrentHTMLReport()" style="font-size: 0.85rem; padding: 0.45rem 0.9rem; background: linear-gradient(135deg, #ec4899, #d946ef); border: none;">
+                        <i class="fa-solid fa-download"></i> บันทึกไฟล์ HTML
+                    </button>
+                    <button type="button" class="btn" onclick="closeHTMLReportModal()" style="background: #ef4444; color: white; font-size: 0.85rem; padding: 0.45rem 0.9rem; border: none;">
+                        <i class="fa-solid fa-xmark"></i> ปิดหน้ารายงาน
+                    </button>
+                </div>
+            </div>
+            <div id="html-report-modal-body" style="background: #ffffff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(236,72,153,0.12);">
+                <!-- Dynamically Populated by exportToHTMLReport() -->
+            </div>
+        </div>
+    </div>
+
     <!-- Full-screen Loading Overlay -->
     <div id="full-screen-loader" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.75); z-index: 10000; flex-direction: column; gap: 1.5rem;">
         <div style="text-align: center; color: white; padding: 2rem; background: var(--bg-secondary); border-radius: 1.25rem; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); max-width: 380px; width: 90%;">
