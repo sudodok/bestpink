@@ -517,6 +517,9 @@ function exportToExcel() {
         hideLoader();
         showCustomAlert("ส่งออกไฟล์ Excel สำเร็จ!", "success");
     } catch(err) {
+        console.error("Excel export error:", err);
+        hideLoader();
+        showCustomAlert("เกิดข้อผิดพลาดในการสร้างไฟล์ Excel: " + err.message, "error");
     }
 }
 
@@ -540,7 +543,10 @@ function exportToHTMLReport() {
         try {
             const sortedTx = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            let txRowsHtml = sortedTx.map((t, idx) => {
+            let txRowsHtml = '';
+            let txCardsHtml = '';
+
+            sortedTx.forEach((t, idx) => {
                 let matchingReq = null;
                 if (t.id && t.id.startsWith('tx-exp-')) {
                     const reqId = t.id.replace('tx-exp-', '');
@@ -567,7 +573,8 @@ function exportToHTMLReport() {
                 const slipImgHtml = slipImg ? `<img src="${safeImgAttr(slipImg)}" class="thumb" onclick="openFullImg(this.src)" title="คลิกเพื่อดูรูปใหญ่">` : '-';
                 const qrImgHtml = qrImg ? `<img src="${safeImgAttr(qrImg)}" class="thumb" onclick="openFullImg(this.src)" title="คลิกเพื่อดูรูปใหญ่">` : '-';
 
-                return `
+                // Desktop Table Row
+                txRowsHtml += `
                     <tr>
                         <td style="text-align:center;">${idx + 1}</td>
                         <td>${formatDateTime(t.date)}</td>
@@ -582,7 +589,34 @@ function exportToHTMLReport() {
                         <td style="text-align:center;">${qrImgHtml}</td>
                     </tr>
                 `;
-            }).join('');
+
+                // Mobile Responsive Card
+                let photoSections = '';
+                if (receiptsImgs) photoSections += `<div class="photo-group-title">📄 ใบเสร็จ / เอกสาร:</div><div class="photo-flex">${receiptsImgs}</div>`;
+                if (productsImgs) photoSections += `<div class="photo-group-title">🛍️ รูปสินค้า:</div><div class="photo-flex">${productsImgs}</div>`;
+                if (slipImg && slipImgHtml !== '-') photoSections += `<div class="photo-group-title">🧾 สลิปโอนเงิน:</div><div class="photo-flex">${slipImgHtml}</div>`;
+                if (qrImg && qrImgHtml !== '-') photoSections += `<div class="photo-group-title">📱 QR Code รับเงิน:</div><div class="photo-flex">${qrImgHtml}</div>`;
+
+                txCardsHtml += `
+                    <div class="report-card">
+                        <div class="report-card-header">
+                            <div>
+                                <span style="font-weight:bold; color:#ec4899; font-size:0.95rem;">#${idx + 1}</span>
+                                <span class="badge ${t.type === 'income' ? 'bg-success' : 'bg-danger'}" style="margin-left:6px;">${t.type === 'income' ? 'รายรับ' : 'รายจ่าย'}</span>
+                                <span class="badge" style="background:#f1f5f9; color:#475569; margin-left:4px;">${t.wallet === 'cash' ? '💵 เงินสด' : '🏦 เงินโอน'}</span>
+                            </div>
+                            <div class="report-card-amount" style="color:${t.type==='income'?'#059669':'#dc2626'};">
+                                ${t.type === 'income' ? '+' : '-'}฿${(t.amount || 0).toLocaleString('th-TH', {minimumFractionDigits:2})}
+                            </div>
+                        </div>
+                        <div class="report-card-title">${escapeHTML(t.desc)}</div>
+                        <div class="report-card-meta">
+                            📅 ${formatDateTime(t.date)} ${applicantName !== '-' ? ` | 👤 ${escapeHTML(applicantName)}` : ''}
+                        </div>
+                        ${photoSections}
+                    </div>
+                `;
+            });
 
             const htmlContent = `<!DOCTYPE html>
 <html lang="th">
@@ -592,147 +626,24 @@ function exportToHTMLReport() {
     <title>รายงานสรุปบัญชีและรูปภาพสลิป - สีชมพู</title>
     <style>
         * { box-sizing: border-box; }
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            min-height: 100%;
-            -webkit-text-size-adjust: 100%;
-        }
-        body {
-            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #fdf2f8;
-            color: #334155;
-            padding: 16px;
-            padding-bottom: max(200px, env(safe-area-inset-bottom, 160px)) !important;
-            line-height: 1.4;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 24px;
-            padding-bottom: 120px !important;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(236,72,153,0.12);
-            margin-bottom: 120px;
-        }
-        h1 {
-            color: #db2777;
-            margin-top: 0;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.45rem;
-            flex-wrap: wrap;
-        }
-        .subtitle {
-            color: #64748b;
-            font-size: 0.88rem;
-            margin-bottom: 18px;
-        }
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            border-radius: 12px;
-            border: 1px solid #fbcfe8;
-            margin-top: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        }
-        table {
-            width: 100%;
-            min-width: 1100px;
-            border-collapse: collapse;
-            font-size: 0.88rem;
-        }
-        th, td {
-            border: 1px solid #fecdd3;
-            padding: 10px 8px;
-            text-align: left;
-            vertical-align: middle;
-        }
-        th {
-            background: #fce7f3;
-            color: #9d174d;
-            font-weight: 700;
-            text-align: center;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.06);
-        }
-        tr:nth-child(even) { background: #fff5f8; }
-        tr:hover { background: #fce7f3; }
-        
-        .thumb {
-            width: 48px;
-            height: 48px;
-            object-fit: cover;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid #f472b6;
-            transition: transform 0.15s, box-shadow 0.15s;
-            margin: 2px;
-        }
-        .thumb:hover, .thumb:active {
-            transform: scale(1.18);
-            box-shadow: 0 4px 12px rgba(236,72,153,0.35);
-        }
-        .badge {
-            padding: 5px 12px;
-            border-radius: 9999px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            display: inline-block;
-        }
+        body { font-family: 'Sarabun', sans-serif; background: #fdf2f8; padding: 16px; color: #334155; }
+        .container { max-width: 1400px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(236,72,153,0.12); }
+        h1 { color: #db2777; font-size: 1.45rem; }
+        .table-responsive { overflow-x: auto; border: 1px solid #fbcfe8; margin-top: 15px; }
+        table { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 0.88rem; }
+        th, td { border: 1px solid #fecdd3; padding: 10px; text-align: left; }
+        th { background: #fce7f3; color: #9d174d; }
+        .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid #f472b6; }
+        .badge { padding: 5px 12px; border-radius: 9999px; font-size: 0.78rem; font-weight: 600; }
         .bg-success { background: #d1fae5; color: #065f46; }
         .bg-danger { background: #fee2e2; color: #991b1b; }
-        .close-hint {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: #fff;
-            font-size: 1rem;
-            background: rgba(0,0,0,0.6);
-            padding: 6px 14px;
-            border-radius: 20px;
-            pointer-events: none;
-        }
-        .end-report-spacer {
-            height: 320px;
-            padding-top: 30px;
-            text-align: center;
-            color: #94a3b8;
-            font-size: 0.85rem;
-            border-top: 2px dashed #fbcfe8;
-            margin-top: 20px;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 10px !important;
-                padding-bottom: max(400px, env(safe-area-inset-bottom, 350px)) !important;
-            }
-            .container {
-                padding: 14px !important;
-                padding-bottom: 200px !important;
-                border-radius: 12px !important;
-                margin-bottom: 180px !important;
-            }
-            h1 { font-size: 1.15rem !important; }
-            th, td { padding: 8px 6px !important; font-size: 0.82rem !important; }
-            .thumb { width: 42px !important; height: 42px !important; }
-            .end-report-spacer { height: 350px !important; }
-        }
+        .mobile-card-list { display: none; flex-direction: column; gap: 12px; }
+        @media (max-width: 768px) { .table-responsive { display: none; } .mobile-card-list { display: flex; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 รายงานสรุปบัญชีเดินรายการพร้อมรูปภาพสลิปและใบเสร็จ (คลังสีชมพู)</h1>
-        <div class="subtitle">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')} | คลิกที่รูปภาพเพื่อเปิดดูรูปใหญ่แบบขยายเต็มหน้าจอ</div>
+        <h1>📊 รายงานสรุปบัญชีเดินรายการ</h1>
         <div class="table-responsive">
             <table>
                 <thead>
@@ -750,46 +661,20 @@ function exportToHTMLReport() {
                         <th>QR Code</th>
                     </tr>
                 </thead>
-                <tbody>
-                    ${txRowsHtml}
-                </tbody>
+                <tbody>${txRowsHtml}</tbody>
             </table>
         </div>
-        <div class="end-report-spacer">
-            ✨ <strong>สิ้นสุดรายงานสรุปบัญชีเดินรายการ</strong> ✨<br>
-            <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px;">(พื้นที่ว่างสำหรับให้เลื่อนแถวด้านล่างสุดพ้นจากแถบเบราว์เซอร์บนมือถือ iOS)</span>
-        </div>
+        <div class="mobile-card-list">${txCardsHtml}</div>
     </div>
-
-    <!-- Fullscreen Image View Modal Overlay -->
-    <div id="imgModal" onclick="this.style.display='none'" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:99999; justify-content:center; align-items:center; cursor:pointer;">
-        <span class="close-hint">✕ แตะที่ใดก็ได้เพื่อปิด</span>
-        <img id="imgModalTarget" style="max-width:92%; max-height:85%; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
-    </div>
-
-    <script>
-        function openFullImg(src) {
-            var modal = document.getElementById('imgModal');
-            var target = document.getElementById('imgModalTarget');
-            if (modal && target) {
-                target.src = src;
-                modal.style.display = 'flex';
-            }
-        }
-    </script>
 </body>
 </html>`;
 
-            // Store htmlContent globally for download
             window.latestHTMLReportContent = htmlContent;
-
-            // Render directly into in-app modal
             const modalBody = document.getElementById('html-report-modal-body');
             const reportModal = document.getElementById('html-report-modal');
             if (modalBody && reportModal) {
                 modalBody.innerHTML = `
-                    <div style="color: #db2777; font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; display:flex; align-items:center; gap:8px;">📊 รายงานสรุปบัญชีเดินรายการพร้อมรูปภาพสลิปและใบเสร็จ (คลังสีชมพู)</div>
-                    <div style="color: #64748b; font-size: 0.85rem; margin-bottom: 15px;">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')} | คลิกที่รูปภาพเพื่อเปิดดูรูปใหญ่แบบขยายเต็มหน้าจอ</div>
+                    <div style="color: #db2777; font-size: 1.3rem; font-weight: 700; margin-bottom: 6px;">📊 รายงานสรุปบัญชีเดินรายการ (คลังสีชมพู)</div>
                     <div class="table-responsive">
                         <table>
                             <thead>
@@ -807,14 +692,12 @@ function exportToHTMLReport() {
                                     <th>QR Code</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${txRowsHtml}
-                            </tbody>
+                            <tbody>${txRowsHtml}</tbody>
                         </table>
                     </div>
+                    <div class="mobile-card-list" style="display:flex; flex-direction:column; gap:12px;">${txCardsHtml}</div>
                     <div class="end-report-spacer" style="height: 350px; padding-top: 40px; text-align: center; color: #94a3b8; font-size: 0.85rem; border-top: 2px dashed #fbcfe8; margin-top: 30px;">
-                        ✨ <strong>สิ้นสุดรายงานสรุปบัญชีเดินรายการ</strong> ✨<br>
-                        <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px;">(พื้นที่ว่าง 350px สำหรับให้เลื่อนรายการด้านล่างสุดพ้นจากแถบ Safari บนมือถือ)</span>
+                        ✨ <strong>สิ้นสุดรายงานสรุปบัญชีเดินรายการ</strong> ✨
                     </div>
                 `;
                 reportModal.style.display = 'flex';
