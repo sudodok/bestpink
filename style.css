@@ -1837,6 +1837,154 @@ body, main, header, .panel-card, .metric-card, .tab-btn, .form-control, table, t
 }
 
 /* ==========================================================================
+   COMPREHENSIVE MOBILE RESPONSIVE SYSTEM (@media max-width: 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* 1. Page Container & Layout Padding */
+    body {
+        padding: 0.5rem !important;
+        font-size: 15px !important;
+    }
+
+    .container, .app-container, .main-layout {
+        padding: 0.5rem !important;
+        max-width: 100% !important;
+    }
+
+    /* 2. Top Header & Navbar Mobile Optimization */
+    header, .top-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+        padding: 0.85rem 1rem !important;
+        border-radius: 1rem !important;
+    }
+
+    .header-right, .user-badge-container {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+    }
+
+    /* 3. Smooth Horizontally Scrollable Tab Navigation */
+    .nav-tabs, .tab-navigation {
+        display: flex !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        white-space: nowrap !important;
+        gap: 0.4rem !important;
+        padding-bottom: 0.5rem !important;
+        margin-bottom: 1rem !important;
+        border-bottom: 2px solid var(--border-color);
+        scrollbar-width: none; /* Firefox */
+    }
+
+    .nav-tabs::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+
+    .tab-btn, .nav-tab-item {
+        flex: 0 0 auto !important;
+        padding: 0.6rem 1rem !important;
+        font-size: 0.85rem !important;
+        border-radius: 9999px !important;
+    }
+
+    /* 4. Form Grids & Layout Columns (Single column on mobile) */
+    .grid-2col, .grid-3col, .grid-4col, .form-row-2col, .form-row-3col {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Prevent iOS Safari input auto-zoom (min 16px font) */
+    input, select, textarea, .form-control {
+        font-size: 16px !important;
+        padding: 0.75rem 0.85rem !important;
+        border-radius: 0.75rem !important;
+    }
+
+    /* 5. Metrics & Dashboard Stats Cards */
+    .metrics-grid, .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    .stat-card, .metric-card {
+        padding: 1rem !important;
+        border-radius: 1rem !important;
+    }
+
+    /* 6. Mobile Export Toolbar & Quick Action Buttons */
+    .export-toolbar, .table-action-bar {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+
+    .export-toolbar .btn, .table-action-bar .btn {
+        flex: 1 1 calc(50% - 0.5rem) !important;
+        min-width: 120px !important;
+        justify-content: center !important;
+        font-size: 0.8rem !important;
+        padding: 0.6rem 0.75rem !important;
+    }
+
+    /* 7. Ledger Transactions List on Mobile */
+    .ledger-item {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+        padding: 0.85rem !important;
+        border-radius: 0.85rem !important;
+    }
+
+    .ledger-right {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        border-top: 1px dashed var(--border-color);
+        padding-top: 0.5rem !important;
+    }
+
+    .ledger-actions {
+        margin-top: 0 !important;
+    }
+
+    /* 8. Full-screen Mobile Touch Modals */
+    .modal {
+        padding: 0.5rem !important;
+        align-items: flex-end !important;
+    }
+
+    .modal-content {
+        max-width: 100% !important;
+        width: 100% !important;
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        border-top-left-radius: 1.5rem !important;
+        border-top-right-radius: 1.5rem !important;
+        padding: 1.5rem 1.25rem !important;
+        max-height: 88vh !important;
+        overflow-y: auto !important;
+    }
+
+    /* 9. Responsive Data Tables */
+    .table-responsive {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        margin-bottom: 1rem !important;
+    }
+
+    table {
+        min-width: 600px !important;
+    }
+}
+
+/* ==========================================================================
    PRINT STYLES (PDF EXPORT)
    ========================================================================== */
 @media print {
