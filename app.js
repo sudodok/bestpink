@@ -651,6 +651,11 @@ function exportToHTMLReport() {
 
             const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
+
+            // Open directly in a new tab for 1-tap mobile viewing
+            const reportWin = window.open(url, '_blank');
+            
+            // Also trigger download link
             const link = document.createElement('a');
             const dateStr = new Date().toLocaleDateString('th-TH').replace(/\//g, '_');
             link.setAttribute('href', url);
@@ -660,7 +665,7 @@ function exportToHTMLReport() {
             document.body.removeChild(link);
 
             hideLoader();
-            showCustomAlert("ดาวน์โหลดรายงาน HTML พร้อมรูปภาพเรียบร้อยแล้ว!", "success");
+            showCustomAlert("เปิดรายงานรูปภาพในหน้าต่างใหม่และส่งออกไฟล์เรียบร้อยแล้ว!", "success");
         } catch (err) {
             console.error("HTML Report export error:", err);
             hideLoader();
