@@ -4423,6 +4423,20 @@ function handleSaveTransaction(e) {
     });
 }
 
+function toggleTxPhotoSection() {
+    const typeSelect = document.getElementById('acc-tx-type');
+    const photoSection = document.getElementById('acc-tx-photo-section');
+    if (!typeSelect || !photoSection) return;
+
+    if (typeSelect.value === 'expense') {
+        photoSection.style.display = 'block';
+    } else {
+        photoSection.style.display = 'none';
+        clearTxReceiptPhoto();
+        clearTxSlipPhoto();
+    }
+}
+
 function editTransaction(txId) {
     const tx = state.transactions.find(t => t.id === txId);
     if (!tx) return;
@@ -4433,6 +4447,9 @@ function editTransaction(txId) {
     document.getElementById('acc-tx-amount').value = tx.amount;
     document.getElementById('acc-tx-date').value = tx.date;
     document.getElementById('acc-tx-desc').value = tx.desc;
+
+    // Toggle photo section visibility based on expense vs income
+    toggleTxPhotoSection();
 
     // Load photo previews if present
     if (tx.receipt) {
@@ -4474,6 +4491,7 @@ function cancelEditTransaction() {
     document.getElementById('acc-transaction-form').reset();
     document.getElementById('acc-tx-id').value = '';
     
+    toggleTxPhotoSection();
     clearTxReceiptPhoto();
     clearTxSlipPhoto();
 

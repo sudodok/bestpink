@@ -623,7 +623,7 @@
                         <div class="form-row-2col">
                             <div class="form-group">
                                 <label for="acc-tx-type">ประเภทรายการ</label>
-                                <select id="acc-tx-type" class="form-control" required>
+                                <select id="acc-tx-type" class="form-control" onchange="toggleTxPhotoSection()" required>
                                     <option value="income">📈 รายรับ (Income)</option>
                                     <option value="expense">📉 รายจ่าย (Expense)</option>
                                 </select>
@@ -653,24 +653,55 @@
                             <input type="text" id="acc-tx-desc" class="form-control" placeholder="เช่น เงินสนับสนุนจากศิษย์เก่า, ค่าซื้อกระดาษริบบิ้นขบวนพาเหรด" required>
                         </div>
 
-                        <!-- Optional Photo Attachments for Expenses & Incomes -->
-                        <div id="acc-tx-photo-section" style="margin-top: 1.25rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 0.75rem; border: 1px dashed var(--border-color);">
-                            <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; color: var(--text-primary);"><i class="fa-solid fa-camera"></i> แนบรูปภาพประกอบรายการ (ถ้ามี)</h4>
-                            <div class="form-row-2col">
-                                <div class="form-group">
-                                    <label for="acc-tx-receipt-input" style="font-size: 0.85rem;">📄 รูปภาพใบเสร็จ / ใบสำคัญรับเงิน</label>
-                                    <input type="file" id="acc-tx-receipt-input" class="form-control" accept="image/*" onchange="handleTxReceiptSelect(this)" style="font-size: 0.8rem;">
-                                    <div id="acc-tx-receipt-preview-box" style="display: none; margin-top: 0.5rem; text-align: center;">
-                                        <img id="acc-tx-receipt-preview" src="" alt="Receipt Preview" style="max-height: 100px; border-radius: 6px; border: 2px solid var(--accent-primary); cursor: pointer;" onclick="viewImage(this.src)">
-                                        <button type="button" class="btn btn-sm" onclick="clearTxReceiptPhoto()" style="display: block; margin: 0.3rem auto 0; font-size: 0.7rem; padding: 0.2rem 0.5rem; background: rgba(239,68,68,0.2); color: var(--accent-danger);">ลบรูปใบเสร็จ</button>
+                        <!-- Dynamic Photo Attachment Section for Expenses -->
+                        <div id="acc-tx-photo-section" style="display: none; margin-top: 1.25rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(253, 242, 248, 0.8), rgba(252, 231, 243, 0.5)); border-radius: 1rem; border: 1.5px dashed #f472b6; transition: all 0.3s ease-in-out;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                <h4 style="margin: 0; font-size: 0.95rem; color: #db2777; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-camera-retro" style="font-size: 1.1rem;"></i> แนบหลักฐานสำหรับรายการรายจ่าย
+                                </h4>
+                                <span style="background: #fbcfe8; color: #9d174d; font-size: 0.75rem; padding: 4px 10px; border-radius: 9999px; font-weight: 600;">เฉพาะรายจ่าย</span>
+                            </div>
+                            
+                            <div class="form-row-2col" style="gap: 1rem;">
+                                <!-- Receipt Photo Card -->
+                                <div class="upload-photo-card" style="background: #ffffff; padding: 1rem; border-radius: 0.85rem; border: 1.5px solid #fbcfe8; text-align: center; position: relative; box-shadow: 0 4px 12px rgba(244,114,182,0.08);">
+                                    <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.6rem;">
+                                        📄 รูปภาพใบเสร็จ / ใบสำคัญรับเงิน
+                                    </label>
+                                    
+                                    <div id="acc-tx-receipt-dropzone" style="cursor: pointer; padding: 0.85rem 0.5rem; border: 2px dashed #f472b6; border-radius: 0.6rem; background: #fff5f8; transition: all 0.2s;" onclick="document.getElementById('acc-tx-receipt-input').click()">
+                                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.6rem; color: #ec4899; margin-bottom: 0.3rem;"></i>
+                                        <div style="font-size: 0.82rem; color: #db2777; font-weight: 600;">คลิกเลือกรูปภาพใบเสร็จ</div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">(รองรับไฟล์รูปภาพ JPG, PNG)</div>
+                                    </div>
+                                    <input type="file" id="acc-tx-receipt-input" accept="image/*" onchange="handleTxReceiptSelect(this)" style="display: none;">
+
+                                    <div id="acc-tx-receipt-preview-box" style="display: none; margin-top: 0.75rem; text-align: center;">
+                                        <img id="acc-tx-receipt-preview" src="" alt="Receipt Preview" style="max-height: 110px; max-width: 100%; border-radius: 8px; border: 2px solid #ec4899; box-shadow: 0 4px 12px rgba(236,72,153,0.25); cursor: pointer;" onclick="viewImage(this.src)">
+                                        <button type="button" class="btn" onclick="clearTxReceiptPhoto()" style="margin: 0.4rem auto 0; font-size: 0.75rem; padding: 0.25rem 0.75rem; background: #fee2e2; color: #dc2626; border-radius: 9999px; width: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+                                            <i class="fa-solid fa-trash-can"></i> ลบรูปใบเสร็จ
+                                        </button>
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="acc-tx-slip-input" style="font-size: 0.85rem;">🧾 รูปสลิปการโอนเงิน / สลิปจ่ายเงิน</label>
-                                    <input type="file" id="acc-tx-slip-input" class="form-control" accept="image/*" onchange="handleTxSlipSelect(this)" style="font-size: 0.8rem;">
-                                    <div id="acc-tx-slip-preview-box" style="display: none; margin-top: 0.5rem; text-align: center;">
-                                        <img id="acc-tx-slip-preview" src="" alt="Slip Preview" style="max-height: 100px; border-radius: 6px; border: 2px solid #22c55e; cursor: pointer;" onclick="viewImage(this.src)">
-                                        <button type="button" class="btn btn-sm" onclick="clearTxSlipPhoto()" style="display: block; margin: 0.3rem auto 0; font-size: 0.7rem; padding: 0.2rem 0.5rem; background: rgba(239,68,68,0.2); color: var(--accent-danger);">ลบรูปสลิป</button>
+
+                                <!-- Slip Photo Card -->
+                                <div class="upload-photo-card" style="background: #ffffff; padding: 1rem; border-radius: 0.85rem; border: 1.5px solid #bbf7d0; text-align: center; position: relative; box-shadow: 0 4px 12px rgba(34,197,94,0.08);">
+                                    <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.6rem;">
+                                        🧾 รูปสลิปการโอนเงิน / สลิปจ่ายเงิน
+                                    </label>
+                                    
+                                    <div id="acc-tx-slip-dropzone" style="cursor: pointer; padding: 0.85rem 0.5rem; border: 2px dashed #4ade80; border-radius: 0.6rem; background: #f0fdf4; transition: all 0.2s;" onclick="document.getElementById('acc-tx-slip-input').click()">
+                                        <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.6rem; color: #16a34a; margin-bottom: 0.3rem;"></i>
+                                        <div style="font-size: 0.82rem; color: #15803d; font-weight: 600;">คลิกเลือกรูปสลิปโอนเงิน</div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">(รองรับไฟล์รูปภาพ JPG, PNG)</div>
+                                    </div>
+                                    <input type="file" id="acc-tx-slip-input" accept="image/*" onchange="handleTxSlipSelect(this)" style="display: none;">
+
+                                    <div id="acc-tx-slip-preview-box" style="display: none; margin-top: 0.75rem; text-align: center;">
+                                        <img id="acc-tx-slip-preview" src="" alt="Slip Preview" style="max-height: 110px; max-width: 100%; border-radius: 8px; border: 2px solid #22c55e; box-shadow: 0 4px 12px rgba(34,197,94,0.25); cursor: pointer;" onclick="viewImage(this.src)">
+                                        <button type="button" class="btn" onclick="clearTxSlipPhoto()" style="margin: 0.4rem auto 0; font-size: 0.75rem; padding: 0.25rem 0.75rem; background: #fee2e2; color: #dc2626; border-radius: 9999px; width: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+                                            <i class="fa-solid fa-trash-can"></i> ลบรูปสลิป
+                                        </button>
                                     </div>
                                 </div>
                             </div>
