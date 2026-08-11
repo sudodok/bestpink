@@ -4137,6 +4137,53 @@ function renderTransactionsView() {
     }
 }
 
+let currentTxReceiptPhoto = '';
+let currentTxSlipPhoto = '';
+
+function handleTxReceiptSelect(input) {
+    if (!input || !input.files || !input.files[0]) return;
+    const file = input.files[0];
+    compressImage(file, 800, 800, 0.3, (compressedDataUrl) => {
+        currentTxReceiptPhoto = compressedDataUrl;
+        const img = document.getElementById('acc-tx-receipt-preview');
+        const box = document.getElementById('acc-tx-receipt-preview-box');
+        if (img && box) {
+            img.src = compressedDataUrl;
+            box.style.display = 'block';
+        }
+    });
+}
+
+function handleTxSlipSelect(input) {
+    if (!input || !input.files || !input.files[0]) return;
+    const file = input.files[0];
+    compressImage(file, 800, 800, 0.3, (compressedDataUrl) => {
+        currentTxSlipPhoto = compressedDataUrl;
+        const img = document.getElementById('acc-tx-slip-preview');
+        const box = document.getElementById('acc-tx-slip-preview-box');
+        if (img && box) {
+            img.src = compressedDataUrl;
+            box.style.display = 'block';
+        }
+    });
+}
+
+function clearTxReceiptPhoto() {
+    currentTxReceiptPhoto = '';
+    const input = document.getElementById('acc-tx-receipt-input');
+    if (input) input.value = '';
+    const box = document.getElementById('acc-tx-receipt-preview-box');
+    if (box) box.style.display = 'none';
+}
+
+function clearTxSlipPhoto() {
+    currentTxSlipPhoto = '';
+    const input = document.getElementById('acc-tx-slip-input');
+    if (input) input.value = '';
+    const box = document.getElementById('acc-tx-slip-preview-box');
+    if (box) box.style.display = 'none';
+}
+
 function renderTransactionsList() {
     const container = document.getElementById('acc-transactions-list');
     if (!container) return;
@@ -4193,6 +4240,24 @@ function renderTransactionsList() {
 
         const amountClass = isIncome ? 'income' : 'expense';
 
+        // Check matching reimbursement request for photos if linked
+        let matchingReq = null;
+        if (t.id && t.id.startsWith('tx-exp-')) {
+            const reqId = t.id.replace('tx-exp-', '');
+            matchingReq = state.requests.find(r => r.id === reqId);
+        }
+
+        const receiptPhoto = t.receipt || (matchingReq ? (matchingReq.receipts ? matchingReq.receipts[0] : matchingReq.receipt) : '');
+        const slipPhoto = t.slip || (matchingReq ? matchingReq.transferSlip : '');
+
+        let photosHtml = '';
+        if (receiptPhoto) {
+            photosHtml += `<img src="${safeImgAttr(receiptPhoto)}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; cursor:pointer; border:1.5px solid var(--accent-primary);" onclick="viewImage('${safeImgAttr(receiptPhoto)}')" title="ดูรูปใบเสร็จ"> `;
+        }
+        if (slipPhoto) {
+            photosHtml += `<img src="${safeImgAttr(slipPhoto)}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; cursor:pointer; border:1.5px solid #22c55e;" onclick="viewImage('${safeImgAttr(slipPhoto)}')" title="ดูรูปสลิปโอนเงิน">`;
+        }
+
         item.innerHTML = `
             <div class="ledger-left">
                 <div class="ledger-icon ${iconClass}">
@@ -4204,14 +4269,18 @@ function renderTransactionsList() {
                         <span>📅 ${formattedDate}</span>
                         <span>|</span>
                         <span>${walletDisplay}</span>
+                        ${t.actor ? `<span>| 👤 ${escapeHTML(t.actor)}</span>` : ''}
                     </div>
                 </div>
             </div>
             <div class="ledger-right">
-                <div class="ledger-amount ${amountClass}">
-                    ${amountDisplay}
+                <div style="display:flex; align-items:center; gap:0.5rem; justify-content:flex-end;">
+                    ${photosHtml}
+                    <div class="ledger-amount ${amountClass}">
+                        ${amountDisplay}
+                    </div>
                 </div>
-                <div class="ledger-actions">
+                <div class="ledger-actions" style="margin-top:0.4rem;">
                     <button type="button" class="btn" style="min-height:auto; width:auto; display:inline-flex; padding:0.4rem 0.6rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); font-size:0.75rem;" onclick="editTransaction('${t.id}')">
                         <i class="fa-solid fa-pen"></i> แก้ไข
                     </button>
@@ -4260,6 +4329,8 @@ function handleSaveTransaction(e) {
             amount,
             date,
             desc,
+            receipt: currentTxReceiptPhoto || existingTx.receipt || '',
+            slip: currentTxSlipPhoto || existingTx.slip || '',
             _synced: false
         };
         
@@ -4285,6 +4356,7 @@ function handleSaveTransaction(e) {
             const reqIdx = state.requests.findIndex(r => r.id === reqId);
             if (reqIdx > -1) {
                 state.requests[reqIdx].amount = amount;
+                if (currentTxSlipPhoto) state.requests[reqIdx].transferSlip = currentTxSlipPhoto;
                 syncPromises.push(syncItemToFirebase('requests', reqId, state.requests[reqIdx]));
             }
         }
@@ -4296,6 +4368,9 @@ function handleSaveTransaction(e) {
             amount,
             date,
             desc,
+            actor: state.user ? state.user.name : 'ประธานสวัสดิการ',
+            receipt: currentTxReceiptPhoto || '',
+            slip: currentTxSlipPhoto || '',
             _synced: false
         };
         state.transactions.push(txObj);
@@ -4324,14 +4399,14 @@ function handleSaveTransaction(e) {
         id: 'log-' + Date.now(),
         date: new Date().toISOString(),
         type: type === 'income' ? 'income' : 'reject',
-        actor: state.user.name,
+        actor: state.user ? state.user.name : 'ประธานสวัสดิการ',
         desc: logMsg,
         _synced: false
     };
     state.logs.push(newLog);
     saveToLocalStorage();
 
-    showLoader("กำลังบันทึกรายการบัญชี...", "ระบบกำลังบันทึกข้อมูลธุรกรรมและประวัติลง Firebase...");
+    showLoader("กำลังบันทึกรายการบัญชี...", "ระบบกำลังบันทึกข้อมูลธุรกรรมและรูปภาพลง Firebase...");
     const p1 = syncItemToFirebase('transactions', txObj.id, txObj);
     const p2 = syncItemToFirebase('logs', newLog.id, newLog);
     
@@ -4359,6 +4434,31 @@ function editTransaction(txId) {
     document.getElementById('acc-tx-date').value = tx.date;
     document.getElementById('acc-tx-desc').value = tx.desc;
 
+    // Load photo previews if present
+    if (tx.receipt) {
+        currentTxReceiptPhoto = tx.receipt;
+        const img = document.getElementById('acc-tx-receipt-preview');
+        const box = document.getElementById('acc-tx-receipt-preview-box');
+        if (img && box) {
+            img.src = tx.receipt;
+            box.style.display = 'block';
+        }
+    } else {
+        clearTxReceiptPhoto();
+    }
+
+    if (tx.slip) {
+        currentTxSlipPhoto = tx.slip;
+        const img = document.getElementById('acc-tx-slip-preview');
+        const box = document.getElementById('acc-tx-slip-preview-box');
+        if (img && box) {
+            img.src = tx.slip;
+            box.style.display = 'block';
+        }
+    } else {
+        clearTxSlipPhoto();
+    }
+
     document.getElementById('acc-form-title').innerHTML = `<i class="fa-solid fa-edit"></i> แก้ไขรายการเดินบัญชี`;
     document.getElementById('btn-save-tx').innerHTML = `<i class="fa-solid fa-save"></i> บันทึกการแก้ไข`;
     document.getElementById('btn-cancel-edit-tx').style.display = 'inline-flex';
@@ -4374,6 +4474,9 @@ function cancelEditTransaction() {
     document.getElementById('acc-transaction-form').reset();
     document.getElementById('acc-tx-id').value = '';
     
+    clearTxReceiptPhoto();
+    clearTxSlipPhoto();
+
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('acc-tx-date').value = today;
 
