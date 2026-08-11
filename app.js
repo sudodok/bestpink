@@ -612,9 +612,10 @@ function exportToHTMLReport() {
             margin: 0 auto;
             background: #fff;
             padding: 24px;
+            padding-bottom: 120px !important;
             border-radius: 16px;
             box-shadow: 0 10px 30px rgba(236,72,153,0.12);
-            margin-bottom: 80px;
+            margin-bottom: 120px;
         }
         h1 {
             color: #db2777;
@@ -638,6 +639,7 @@ function exportToHTMLReport() {
             border-radius: 12px;
             border: 1px solid #fbcfe8;
             margin-top: 15px;
+            margin-bottom: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         }
         table {
@@ -699,20 +701,31 @@ function exportToHTMLReport() {
             border-radius: 20px;
             pointer-events: none;
         }
+        .end-report-spacer {
+            height: 320px;
+            padding-top: 30px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            border-top: 2px dashed #fbcfe8;
+            margin-top: 20px;
+        }
 
         @media (max-width: 768px) {
             body {
                 padding: 10px !important;
-                padding-bottom: max(220px, env(safe-area-inset-bottom, 180px)) !important;
+                padding-bottom: max(400px, env(safe-area-inset-bottom, 350px)) !important;
             }
             .container {
                 padding: 14px !important;
+                padding-bottom: 200px !important;
                 border-radius: 12px !important;
-                margin-bottom: 100px !important;
+                margin-bottom: 180px !important;
             }
             h1 { font-size: 1.15rem !important; }
             th, td { padding: 8px 6px !important; font-size: 0.82rem !important; }
             .thumb { width: 42px !important; height: 42px !important; }
+            .end-report-spacer { height: 350px !important; }
         }
     </style>
 </head>
@@ -741,6 +754,10 @@ function exportToHTMLReport() {
                     ${txRowsHtml}
                 </tbody>
             </table>
+        </div>
+        <div class="end-report-spacer">
+            ✨ <strong>สิ้นสุดรายงานสรุปบัญชีเดินรายการ</strong> ✨<br>
+            <span style="font-size:0.75rem; color:#cbd5e1; display:inline-block; margin-top:6px;">(พื้นที่ว่างสำหรับให้เลื่อนแถวด้านล่างสุดพ้นจากแถบเบราว์เซอร์บนมือถือ iOS)</span>
         </div>
     </div>
 
