@@ -2223,19 +2223,40 @@ function switchTab(viewId) {
 
 // Calculation and Metrics Rendering
 function calculateAndRenderMetrics() {
-    const totalIncome = state.incomes.reduce((acc, curr) => acc + curr.amount, 0);
-    const approvedExpenses = state.requests
-        .filter(req => req.status === 'approved')
-        .reduce((acc, curr) => acc + curr.amount, 0);
+    let totalIncome = 0;
+    let approvedExpenses = 0;
+
+    if (state.transactions && state.transactions.length > 0) {
+        const cashIn = state.transactions.filter(t => t.type === 'income' && t.wallet === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
+        const bankIn = state.transactions.filter(t => t.type === 'income' && t.wallet === 'bank').reduce((acc, curr) => acc + curr.amount, 0);
+        totalIncome = (state.initialCash || 0) + (state.initialBank || 0) + cashIn + bankIn;
+
+        const cashOut = state.transactions.filter(t => t.type === 'expense' && t.wallet === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
+        const bankOut = state.transactions.filter(t => t.type === 'expense' && t.wallet === 'bank').reduce((acc, curr) => acc + curr.amount, 0);
+        approvedExpenses = cashOut + bankOut;
+    } else {
+        totalIncome = state.incomes.reduce((acc, curr) => acc + curr.amount, 0) + (state.initialCash || 0) + (state.initialBank || 0);
+        approvedExpenses = state.requests
+            .filter(req => req.status === 'approved')
+            .reduce((acc, curr) => acc + curr.amount, 0);
+    }
+    
     const remainingBalance = totalIncome - approvedExpenses;
     
-    document.getElementById('metric-balance').textContent = formatCurrency(remainingBalance);
-    document.getElementById('metric-income').textContent = formatCurrency(totalIncome);
-    document.getElementById('metric-expenses').textContent = formatCurrency(approvedExpenses);
+    const metricBalanceEl = document.getElementById('metric-balance');
+    const metricIncomeEl = document.getElementById('metric-income');
+    const metricExpensesEl = document.getElementById('metric-expenses');
+    
+    if (metricBalanceEl) metricBalanceEl.textContent = formatCurrency(remainingBalance);
+    if (metricIncomeEl) metricIncomeEl.textContent = formatCurrency(totalIncome);
+    if (metricExpensesEl) metricExpensesEl.textContent = formatCurrency(approvedExpenses);
     
     // Update Pending queue count in tab label
-    const pendingCount = state.requests.filter(req => req.status === 'pending').length;
-    document.getElementById('pending-count').textContent = pendingCount;
+    const pendingCountEl = document.getElementById('pending-count');
+    if (pendingCountEl) {
+        const pendingCount = state.requests.filter(req => req.status === 'pending').length;
+        pendingCountEl.textContent = pendingCount;
+    }
 }
 
 // Check department budget limits remaining
@@ -3802,6 +3823,7 @@ function handleSaveTransaction(e) {
 
     let txObj = {};
     let isEdit = false;
+    let syncPromises = [];
 
     if (txId) {
         const existingTx = state.transactions.find(t => t.id === txId);
@@ -3820,6 +3842,29 @@ function handleSaveTransaction(e) {
         
         const idx = state.transactions.findIndex(t => t.id === txId);
         state.transactions[idx] = txObj;
+
+        // Two-way sync to incomes if linked
+        if (txId.startsWith('tx-inc-')) {
+            const incId = txId.replace('tx-inc-', '');
+            const incIdx = state.incomes.findIndex(i => i.id === incId);
+            if (incIdx > -1) {
+                state.incomes[incIdx].amount = amount;
+                state.incomes[incIdx].desc = desc;
+                state.incomes[incIdx].description = desc;
+                state.incomes[incIdx].date = date;
+                syncPromises.push(syncItemToFirebase('incomes', incId, state.incomes[incIdx]));
+            }
+        }
+
+        // Two-way sync to requests if linked
+        if (txId.startsWith('tx-exp-')) {
+            const reqId = txId.replace('tx-exp-', '');
+            const reqIdx = state.requests.findIndex(r => r.id === reqId);
+            if (reqIdx > -1) {
+                state.requests[reqIdx].amount = amount;
+                syncPromises.push(syncItemToFirebase('requests', reqId, state.requests[reqIdx]));
+            }
+        }
     } else {
         txObj = {
             id: 'tx-' + Date.now(),
@@ -3831,13 +3876,26 @@ function handleSaveTransaction(e) {
             _synced: false
         };
         state.transactions.push(txObj);
+
+        // Two-way sync: if new income, also create income entry
+        if (type === 'income') {
+            const newInc = {
+                id: 'inc-' + Date.now(),
+                desc: desc,
+                amount: amount,
+                date: new Date(date).toISOString(),
+                actor: state.user ? state.user.name : 'ประธานสวัสดิการ'
+            };
+            state.incomes.push(newInc);
+            syncPromises.push(syncItemToFirebase('incomes', newInc.id, newInc));
+        }
     }
 
     saveToLocalStorage();
     
     const logMsg = isEdit 
-        ? `แก้ไขรายการบัญชีแยกประเภท: "${desc}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${type === 'income' ? 'รายรับ' : 'รายจ่าย'} - ${wallet === 'cash' ? 'เงินสด' : 'เงินโอน'})`
-        : `บันทึกรายการบัญชีแยกประเภท: "${desc}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${type === 'income' ? 'รายรับ' : 'รายจ่าย'} - ${wallet === 'cash' ? 'เงินสด' : 'เงินโอน'})`;
+        ? `แก้ไขรายการบัญชีเดินรายการ: "${desc}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${type === 'income' ? 'รายรับ' : 'รายจ่าย'} - ${wallet === 'cash' ? 'เงินสด' : 'เงินโอน'})`
+        : `บันทึกรายการบัญชีเดินรายการ: "${desc}" ยอดเงิน ฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${type === 'income' ? 'รายรับ' : 'รายจ่าย'} - ${wallet === 'cash' ? 'เงินสด' : 'เงินโอน'})`;
     
     const newLog = {
         id: 'log-' + Date.now(),
@@ -3854,9 +3912,11 @@ function handleSaveTransaction(e) {
     const p1 = syncItemToFirebase('transactions', txObj.id, txObj);
     const p2 = syncItemToFirebase('logs', newLog.id, newLog);
     
-    Promise.all([p1, p2]).then(() => {
+    Promise.all([p1, p2, ...syncPromises]).then(() => {
+        calculateAndRenderMetrics();
         renderTransactionsView();
         renderTransactionsList();
+        renderDepartmentAllocations();
         cancelEditTransaction();
         hideLoader();
         showCustomAlert("บันทึกรายการรายรับ-รายจ่ายสำเร็จ!", "success");
@@ -3908,8 +3968,29 @@ function deleteTransaction(txId) {
     showCustomConfirm(`⚠️ คุณต้องการลบรายการ "${tx.desc}" ยอดเงิน ฿${tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จริงหรือไม่?`, (confirmed) => {
         if (!confirmed) return;
 
+        let extraSyncPromises = [];
+
+        // Two-way delete sync: if income transaction
+        if (txId.startsWith('tx-inc-')) {
+            const incId = txId.replace('tx-inc-', '');
+            state.incomes = state.incomes.filter(i => i.id !== incId);
+            if (useFirebase && db) {
+                extraSyncPromises.push(db.collection('incomes').doc(incId).delete().catch(err => console.error("Del inc err:", err)));
+            }
+        }
+
+        // Two-way delete sync: if request/expense transaction
+        if (txId.startsWith('tx-exp-')) {
+            const reqId = txId.replace('tx-exp-', '');
+            const reqIdx = state.requests.findIndex(r => r.id === reqId);
+            if (reqIdx > -1) {
+                state.requests[reqIdx].status = 'rejected';
+                state.requests[reqIdx].rejectReason = 'ลบรายการเบิกจ่ายออกจากสมุดบัญชี';
+                extraSyncPromises.push(syncItemToFirebase('requests', reqId, state.requests[reqIdx]));
+            }
+        }
+
         state.transactions = state.transactions.filter(t => t.id !== txId);
-        state.membersLastUpdated = Date.now();
         saveToLocalStorage();
 
         const newLog = {
@@ -3917,19 +3998,21 @@ function deleteTransaction(txId) {
             date: new Date().toISOString(),
             type: 'member_delete',
             actor: state.user.name,
-            desc: `ลบรายการบัญชีแยกประเภท: "${tx.desc}" ยอดเงิน ฿${tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+            desc: `ลบรายการบัญชีเดินรายการ: "${tx.desc}" ยอดเงิน ฿${tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
             _synced: false
         };
         state.logs.push(newLog);
         saveToLocalStorage();
 
         showLoader("กำลังลบรายการบัญชี...", "ระบบกำลังลบข้อมูลและซิงก์ประวัติลง Firebase...");
-        const p1 = (useFirebase && db) ? db.collection('transactions').doc(txId).delete() : Promise.resolve();
+        const p1 = (useFirebase && db) ? db.collection('transactions').doc(txId).delete().catch(err => console.error("Del tx err:", err)) : Promise.resolve();
         const p2 = syncItemToFirebase('logs', newLog.id, newLog);
 
-        Promise.all([p1, p2]).then(() => {
+        Promise.all([p1, p2, ...extraSyncPromises]).then(() => {
+            calculateAndRenderMetrics();
             renderTransactionsView();
             renderTransactionsList();
+            renderDepartmentAllocations();
             hideLoader();
             showCustomAlert("ลบรายการเรียบร้อยแล้ว!", "success");
         }).catch(err => {
