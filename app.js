@@ -2287,12 +2287,10 @@ function autofillUserForms() {
         
         // Show president settings only for admin, but show members panel for all presidents
         const presidentMembersPanel = document.getElementById('president-members-panel');
-        if (presidentSettingsPanel && presidentMembersPanel) {
-            if (state.user.username === 'admin') {
-                presidentSettingsPanel.style.display = 'block';
-            } else {
-                presidentSettingsPanel.style.display = 'none';
-            }
+        if (presidentSettingsPanel) {
+            presidentSettingsPanel.style.display = 'none';
+        }
+        if (presidentMembersPanel) {
             presidentMembersPanel.style.display = 'block';
             renderAdminMembersList();
         }
