@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pink Team Finance - ระบบจัดการเงินคณะสีชมพู</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="favicon.jpg">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-logo">
+                <i class="fa-solid fa-piggy-bank"></i>
+            </div>
+            <h1 class="splash-title">MoneyPink</h1>
+            <p class="splash-subtitle">ระบบบริหารจัดการการเงินกองกลางสีชมพู</p>
+            <div class="splash-loader-bar">
+                <div class="splash-loader-fill" id="splash-loader-fill"></div>
+            </div>
+            <div class="splash-status" id="splash-status">กำลังโหลดข้อมูลระบบ...</div>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <i class="fa-solid fa-clover"></i>
+                <span>Pink Team Finance</span>
+            </div>
+            
+            <!-- Theme Toggle Button -->
+            <button id="theme-toggle" class="btn-theme" onclick="toggleTheme()" title="สลับโหมดกลางวัน/กลางคืน">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            
+            <!-- User Status & Logout -->
+            <div id="user-status-area" style="display: none; align-items: center; gap: 1rem;">
+                <div class="user-info-badge">
+                    <span id="user-avatar" class="avatar-circle"><i class="fa-solid fa-user"></i></span>
+                    <div class="user-text-details">
+                        <div id="user-display-name" style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">ผู้ใช้งาน</div>
+                        <div id="user-display-role" style="font-size: 0.75rem; color: var(--text-secondary);">ฝ่ายงาน</div>
+                    </div>
+                </div>
+                <button class="btn btn-logout" onclick="handleLogout()" title="ออกจากระบบ">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">ออกระบบ</span>
+                </button>
+        </div>
+    </header>
+
+    <!-- Offline Banner Status -->
+    <div id="offline-banner" style="display: none; background: #ea580c; color: white; text-align: center; padding: 0.5rem; font-size: 0.85rem; font-weight: 500; position: sticky; top: 0; z-index: 1001; box-shadow: 0 2px 10px rgba(0,0,0,0.15);">
+        <i class="fa-solid fa-triangle-exclamation"></i> โหมดออฟไลน์: เชื่อมต่อฐานข้อมูลล้มเหลว/หมดเวลา ระบบใช้งานข้อมูลในเครื่องชั่วคราวและยังไม่เชื่อมต่อออนไลน์
+    </div>
+
+    <!-- LOGIN SECTION -->
+    <section id="login-section" class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <i class="fa-solid fa-coins login-logo-icon"></i>
+                <h2>คณะสีชมพู</h2>
+                <p>ระบบบริหารจัดการงบประมาณและเบิกจ่ายสวัสดิการสีชมพู</p>
+            </div>
+            
+            <!-- Login Type Tabs -->
+            <div class="login-type-tabs">
+                <button id="login-tab-member" class="login-tab-btn active" onclick="switchLoginTab('member')">
+                    <i class="fa-solid fa-users-gear"></i> สมาชิก (ผู้เบิก)
+                </button>
+                <button id="login-tab-president" class="login-tab-btn" onclick="switchLoginTab('president')">
+                    <i class="fa-solid fa-user-shield"></i> ผู้ดูแลระบบ / คณะกรรมการ
+                </button>
+            </div>
+
+            <!-- Member Login Form -->
+            <form id="member-login-form" onsubmit="handleMemberLogin(event)">
+                <div class="form-group" style="position: relative;">
+                    <label for="login-member-name">ชื่อ-นามสกุล ผู้เบิกเงิน</label>
+                    <input type="text" id="login-member-name" class="form-control"
+                        placeholder="พิมพ์ชื่อหรือนามสกุลเพื่อค้นหา..."
+                        autocomplete="new-password"
+                        oninput="handleMemberSearch(this.value)"
+                        onfocus="handleMemberSearch(this.value)"
+                        required>
+                    <input type="hidden" id="login-member-id">
+                    <div id="member-suggest-list" style="
+                        display: none;
+                        position: absolute;
+                        top: 100%; left: 0; right: 0;
+                        background: var(--bg-secondary);
+                        border: 1px solid var(--border-color);
+                        border-radius: 0.5rem;
+                        max-height: 220px;
+                        overflow-y: auto;
+                        z-index: 999;
+                        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                        margin-top: 4px;
+                    "></div>
+                </div>
+                <div class="form-group">
+                    <label for="login-member-code">รหัสผ่าน</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="login-member-code" class="form-control"
+                            placeholder="กรอกรหัสผ่าน"
+                            autocomplete="new-password" required>
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-member-code', this)">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                    <div id="member-code-error" style="display:none; color: var(--accent-danger); font-size:0.82rem; margin-top:0.35rem;">
+                        <i class="fa-solid fa-circle-exclamation"></i> รหัสผ่านไม่ถูกต้อง
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-member-dept">ประเภทสินค้า / ฝ่ายงานที่รับผิดชอบ</label>
+                    <select id="login-member-dept" class="form-control" required>
+                        <option value="stand">🎨 อุปกรณ์สแตนด์ (ฝ่ายสแตนด์เชียร์)</option>
+                        <option value="leaders">💃 อุปกรณ์ลีด (ฝ่ายเชียร์ลีดเดอร์)</option>
+                        <option value="parade">🎺 ตกแต่งพาเหรด (ฝ่ายขบวนพาเหรด)</option>
+                        <option value="welfare">🍱 อาหาร/น้ำดื่ม (ฝ่ายสวัสดิการและอาหาร)</option>
+                        <option value="props">🎭 วัสดุสร้างฉาก (ฝ่ายอุปกรณ์และฉาก)</option>
+                        <option value="sports">👟 สวัสดิการนักกีฬา (ฝ่ายนักกีฬา)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบเบิกจ่าย
+                </button>
+            </form>
+
+            <!-- President Login Form -->
+            <form id="president-login-form" style="display: none;" onsubmit="handlePresidentLogin(event)">
+                <div class="form-group">
+                    <label for="login-pres-user">ชื่อผู้ใช้งาน (Username)</label>
+                    <input type="text" id="login-pres-user" class="form-control" placeholder="ระบุชื่อผู้ใช้งาน" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-pres-pass">รหัสผ่าน (Password)</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="login-pres-pass" class="form-control" placeholder="ระบุรหัสผ่าน" required>
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-pres-pass', this)">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="login-error-msg" style="display: none; color: var(--accent-danger); font-size: 0.85rem; margin-bottom: 1rem; text-align: center;">
+                    <i class="fa-solid fa-circle-exclamation"></i> ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบอนุมัติ
+                </button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <button type="button" onclick="openLoginIssueModal()" style="font-size: 0.85rem; color: var(--text-secondary); background: none; border: none; cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-sans);">
+                    <i class="fa-solid fa-circle-question"></i> พบปัญหาการใช้งาน? แจ้งปัญหาที่นี่
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN DASHBOARD CONTENT (Hidden until logged in) -->
+    <main id="main-content" style="display: none;">
+        <!-- Budget Dashboard (Global Metrics) -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon balance">
+                    <i class="fa-solid fa-piggy-bank"></i>
+                </div>
+                <div class="metric-info">
+                    <h3>งบประมาณสีชมพูคงเหลือ</h3>
+                    <div id="metric-balance" class="metric-val">฿0.00</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon income">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </div>
+                <div class="metric-info">
+                    <h3>รายรับรวมของสี</h3>
+                    <div id="metric-income" class="metric-val">฿0.00</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon expenses">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <div class="metric-info">
+                    <h3>ยอดอนุมัติเบิกจ่ายไปแล้ว</h3>
+                    <div id="metric-expenses" class="metric-val">฿0.00</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs Wrapper with scroll indicators -->
+        <div class="tab-navigation-wrapper">
+            <div class="tab-navigation">
+                <button id="tab-dashboard" class="tab-btn active" onclick="switchTab('dashboard-view')">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span class="tab-text-desktop">แดชบอร์ดแบ่งฝ่าย</span>
+                <span class="tab-text-mobile">แดชบอร์ด</span>
+            </button>
+            <button id="tab-request" class="tab-btn" onclick="switchTab('request-view')">
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+                <span class="tab-text-desktop">ยื่นใบเบิกเงิน</span>
+                <span class="tab-text-mobile">ยื่นใบเบิก</span>
+            </button>
+            <button id="tab-pending" class="tab-btn" onclick="switchTab('pending-view')">
+                <i class="fa-solid fa-hourglass-half"></i>
+                <span class="tab-text-desktop">รายการพิจารณาเบิก</span>
+                <span class="tab-text-mobile">รออนุมัติ</span>
+                (<span id="pending-count">0</span>)
+            </button>
+            <button id="tab-logs" class="tab-btn" onclick="switchTab('logs-view')">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="tab-text-desktop">ประวัติ & สลิปโอนเงิน</span>
+                <span class="tab-text-mobile">ประวัติ & สลิป</span>
+            </button>
+            <button id="tab-members" class="tab-btn" onclick="switchTab('members-view')" style="display: none;">
+                <i class="fa-solid fa-users-cog"></i>
+                <span class="tab-text-desktop">จัดการรายชื่อสมาชิก</span>
+                <span class="tab-text-mobile">จัดการสมาชิก</span>
+            </button>
+            <button id="tab-accounts" class="tab-btn" onclick="switchTab('accounts-view')" style="display: none;">
+                <i class="fa-solid fa-vault"></i>
+                <span class="tab-text-desktop">บัญชีรายรับ-รายจ่าย</span>
+                <span class="tab-text-mobile">ระบบบัญชี</span>
+            </button>
+            <button id="tab-member-history" class="tab-btn" onclick="switchTab('member-history-view')" style="display: none;">
+                <i class="fa-solid fa-receipt"></i>
+                <span class="tab-text-desktop">ประวัติการเบิกของฉัน</span>
+                <span class="tab-text-mobile">ประวัติของฉัน</span>
+            </button>
+            <button id="tab-issues" class="tab-btn" onclick="switchTab('issues-view')">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span class="tab-text-desktop">แจ้งปัญหา</span>
+                <span class="tab-text-mobile">แจ้งปัญหา</span>
+                (<span id="issues-count">0</span>)
+            </button>
+            </div>
+            <div class="tab-scroll-indicator right"><i class="fa-solid fa-chevron-right"></i></div>
+            <div class="tab-scroll-indicator left"><i class="fa-solid fa-chevron-left"></i></div>
+        </div>
+
+        <!-- TAB 1: Dashboard View -->
+        <div id="dashboard-view" class="tab-content active">
+            <div style="display: block;">
+                <!-- Department Progress bars (Allocated vs Spent) -->
+                <div class="panel-card" style="width: 100%;">
+                    <h2 class="panel-title"><i class="fa-solid fa-sliders"></i> งบประมาณจำแนกตามฝ่ายงาน (สีชมพู)</h2>
+                    <div id="department-budget-list" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem;">
+                        <!-- Progress bars rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Request Reimbursement Form -->
+        <div id="request-view" class="tab-content">
+            <div class="grid-2col">
+                <!-- Submission Form -->
+                <div class="panel-card">
+                    <h2 class="panel-title"><i class="fa-solid fa-edit"></i> กรอกข้อมูลใบขอเบิกเงินสวัสดิการ</h2>
+                    <form id="reimbursement-form" onsubmit="handleRequestSubmit(event)">
+                        <div class="form-row-2col">
+                            <div class="form-group">
+                                <label for="req-name">ชื่อผู้เบิกเงิน</label>
+                                <input type="text" id="req-name" class="form-control" readonly style="background-color: var(--bg-tertiary); cursor: not-allowed;">
+                            </div>
+                            <div class="form-group">
+                                <label for="req-dept-disp">ฝ่ายงานที่เบิก</label>
+                                <input type="text" id="req-dept-disp" class="form-control" readonly style="background-color: var(--bg-tertiary); cursor: not-allowed;">
+                                <input type="hidden" id="req-dept">
+                            </div>
+                        </div>
+
+                        <div class="form-row-2col">
+                            <div class="form-group">
+                                <label for="req-item">รายการสินค้าที่ซื้อ</label>
+                                <input type="text" id="req-item" class="form-control" placeholder="เช่น กระดาษสีทำแสตนด์, น้ำแข็งกระติกขบวน" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="req-amount">จำนวนเงินที่จ่ายจริง (บาท)</label>
+                                <input type="number" id="req-amount" class="form-control" min="0.01" step="0.01" placeholder="0.00" oninput="checkFormBudgetWarning()" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-memo">หมายเหตุ / รายละเอียดเพิ่มเติม</label>
+                            <textarea id="req-memo" class="form-control" rows="2" placeholder="อธิบายร้านค้า วันที่ซื้อ หรือความจำเป็นในการซื้อเพิ่มเติมเพื่อช่วยประธานตรวจสอบง่ายขึ้น"></textarea>
+                        </div>
+
+                        <!-- Live Warning if exceeds total remaining balance -->
+                        <div id="form-budget-warning" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-danger); padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem; color: var(--accent-danger); font-size: 0.85rem;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> คำเตือน: จำนวนเงินที่ขอเบิกนี้เกินกว่างบประมาณคงเหลือในคลังสวัสดิการรวม
+                        </div>
+
+                        <!-- Upload Grid with Multiple Photo uploads -->
+                        <div class="form-group"><label>แนบเอกสารหลักฐาน (รองรับรูปภาพ)</label></div>
+                        <div class="image-upload-grid">
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem;">1. รูปใบเสร็จรับเงิน (Receipt) * (ใส่ได้หลายรูป)</label>
+                                <div class="upload-container small-container" onclick="triggerUpload('upload-receipt')">
+                                    <i class="fa-solid fa-file-image upload-icon"></i>
+                                    <p>กดเพื่อแนบรูปใบเสร็จ</p>
+                                    <input type="file" id="upload-receipt" accept="image/*" multiple style="display: none;" onchange="handleMultipleImagePreview(this, 'receipt-preview-list', 'receipt')">
+                                </div>
+                                <div id="receipt-preview-list" class="multi-upload-preview-list" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem;"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem;">2. รูปสินค้าที่ซื้อ (Product) * (ใส่ได้หลายรูป)</label>
+                                <div class="upload-container small-container" onclick="triggerUpload('upload-product')">
+                                    <i class="fa-solid fa-camera upload-icon"></i>
+                                    <p>กดเพื่อแนบรูปสินค้า</p>
+                                    <input type="file" id="upload-product" accept="image/*" multiple style="display: none;" onchange="handleMultipleImagePreview(this, 'product-preview-list', 'product')">
+                                </div>
+                                <div id="product-preview-list" class="multi-upload-preview-list" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem;"></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label style="font-size: 0.8rem;">3. QR Code รับเงิน (QR) * (ใบเบิกละ 1 รูป)</label>
+                                <div class="upload-container small-container" onclick="triggerUpload('upload-qrcode')">
+                                    <i class="fa-solid fa-qrcode upload-icon"></i>
+                                    <p>อัปโหลด QR Code</p>
+                                    <input type="file" id="upload-qrcode" accept="image/*" style="display: none;" onchange="handleQrcodePreview(this, 'qrcode-preview')">
+                                    <div id="qrcode-preview" class="upload-preview" onclick="event.stopPropagation()">
+                                        <img src="" alt="QR Code Preview" onclick="viewImage(this.src)" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                                        <button type="button" class="remove-btn" onclick="removeQrcodeImage(event, 'upload-qrcode', 'qrcode-preview')">&times;</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="form-role-warning" style="display: none; margin-bottom: 1rem; color: var(--accent-warning); text-align: center; font-size: 0.9rem;">
+                            <i class="fa-solid fa-circle-info"></i> คุณเข้าสู่ระบบด้วยสิทธิ์ "ประธานสวัสดิการ" ซึ่งไม่สามารถยื่นเบิกเงินได้
+                        </div>
+
+                        <button type="submit" id="submit-request-btn" class="btn btn-primary" style="margin-top: 1rem;">
+                            <i class="fa-solid fa-paper-plane"></i> ส่งใบเบิกไปยังประธานสวัสดิการ
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Guidance / Rules -->
+                <div class="panel-card">
+                    <h2 class="panel-title"><i class="fa-solid fa-circle-question"></i> ขั้นตอนการยื่นเบิกและโอนเงิน</h2>
+                    <div style="font-size: 0.95rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 1rem;">
+                        <p>1. <strong>แนบรูปใบเสร็จและรูปสินค้า</strong>: ต้องแนบภาพใบเสร็จจริง และภาพถ่ายของสินค้าที่ซื้อมาเพื่อเป็นหลักฐานยืนยันความถูกต้อง</p>
+                        <p>2. <strong>โอนเงินคืน</strong>: ประธานสวัสดิการจะทำการโอนเงินคืนให้คุณตามคิวอาร์โค้ดพร้อมเพย์ที่แนบมา</p>
+                        <p>3. <strong>ตรวจสอบประวัติ</strong>: เมื่ออนุมัติแล้ว คุณจะได้รับ **ใบสลิปการโอนเงิน (Transfer Slip)** ของประธานในระบบ เพื่อยืนยันว่าโอนเรียบร้อย</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Pending Approvals Queue -->
+        <div id="pending-view" class="tab-content">
+            <div class="panel-card">
+                <h2 class="panel-title"><i class="fa-solid fa-clock"></i> รายการใบเบิกสวัสดิการที่รอการตรวจสอบ</h2>
+                <div id="pending-list" class="requests-grid">
+                    <!-- Skeleton Loader (Replaced on load) -->
+                    <div class="skeleton-request-card">
+                        <div class="skeleton-card-header">
+                            <div class="skeleton-badge skeleton"></div>
+                            <div class="skeleton-badge skeleton"></div>
+                        </div>
+                        <div class="skeleton-card-body">
+                            <div class="skeleton-text title skeleton" style="margin-bottom: 0.5rem;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="margin-bottom: 0.35rem; width: 80%;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-request-card">
+                        <div class="skeleton-card-header">
+                            <div class="skeleton-badge skeleton"></div>
+                            <div class="skeleton-badge skeleton"></div>
+                        </div>
+                        <div class="skeleton-card-body">
+                            <div class="skeleton-text title skeleton" style="margin-bottom: 0.5rem;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="margin-bottom: 0.35rem; width: 80%;"></div >
+                            <div class="skeleton-text subtitle skeleton" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: Logs View (ประวัติ & สลิปโอนเงิน) -->
+        <div id="logs-view" class="tab-content">
+            <!-- Approved Reimbursements & Transfer Slip Management Panel -->
+            <div class="panel-card" style="margin-bottom: 1.5rem;">
+                <h2 class="panel-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                    <span><i class="fa-solid fa-receipt"></i> ประวัติเฉพาะการขอเบิกและสลิปโอนเงิน</span>
+                    <span style="font-size:0.8rem; font-weight:normal; color:var(--text-secondary);">
+                        <i class="fa-solid fa-circle-info"></i> ประธาน/ผู้ดูแลระบบสามารถแนบหรือแก้ไขสลิปการโอนเงินย้อนหลังได้ตลอดเวลา
+                    </span>
+                </h2>
+                <div class="table-container table-scroll-y">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วันเวลาอนุมัติ</th>
+                                <th>ผู้ขอเบิก / ฝ่ายงาน</th>
+                                <th>รายการสินค้า</th>
+                                <th>เอกสารใบเสร็จ & รูปสินค้า</th>
+                                <th>จำนวนเงิน</th>
+                                <th>สลิปโอนเงิน</th>
+                                <th>การจัดการสลิป</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approved-reimbursements-table">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid-2col">
+                <!-- Logs History -->
+                <div class="panel-card">
+                    <h2 class="panel-title"><i class="fa-solid fa-shield-halved"></i> บันทึกเหตุการณ์และประวัติสลิป (Audit Logs)</h2>
+                    <div id="system-logs" class="log-list">
+                        <!-- Skeleton Loader (Replaced on load) -->
+                        <div style="display:flex; flex-direction:column; gap:1.25rem; padding:0.5rem 0; width:100%;">
+                            <div style="display:flex; justify-content:space-between; gap:1.5rem;">
+                                <div class="skeleton-text skeleton" style="width:70%; height:0.9rem; margin:0;"></div>
+                                <div class="skeleton-text skeleton" style="width:20%; height:0.8rem; margin:0;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; gap:1.5rem;">
+                                <div class="skeleton-text skeleton" style="width:60%; height:0.9rem; margin:0;"></div>
+                                <div class="skeleton-text skeleton" style="width:20%; height:0.8rem; margin:0;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; gap:1.5rem;">
+                                <div class="skeleton-text skeleton" style="width:80%; height:0.9rem; margin:0;"></div>
+                                <div class="skeleton-text skeleton" style="width:20%; height:0.8rem; margin:0;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- President Management: Settings / Incomes / Allocation limits -->
+                <div>
+                    <!-- Income Panel -->
+                    <div class="panel-card" style="margin-bottom: 2rem;">
+                        <h2 class="panel-title"><i class="fa-solid fa-hand-holding-dollar"></i> เพิ่มเงินเข้าคลังคณะสีชมพู</h2>
+                        <form id="income-form" onsubmit="handleIncomeSubmit(event)">
+                            <div class="form-group">
+                                <label for="inc-desc">ระบุแหล่งรายรับ</label>
+                                <input type="text" id="inc-desc" class="form-control" placeholder="เช่น เงินสนับสนุนสปอนเซอร์ศิษย์เก่า, สรรหาเงินกองกลางสี" required>
+                            </div>
+                            <div class="form-row-2col">
+                                <div class="form-group">
+                                    <label for="inc-amount">จำนวนเงิน (บาท)</label>
+                                    <input type="number" id="inc-amount" class="form-control" min="1" step="0.01" placeholder="0.00" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="inc-actor">ประธานผู้บันทึก</label>
+                                    <input type="text" id="inc-actor" class="form-control" readonly style="background-color: var(--bg-tertiary);">
+                                </div>
+                            </div>
+                            <button type="submit" id="submit-income-btn" class="btn btn-success">
+                                <i class="fa-solid fa-plus"></i> บันทึกรายรับเข้าระบบ
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Reset & Database Settings Panel (President Only) -->
+                    <div class="panel-card" id="president-settings-panel" style="margin-top: 1.5rem; display: none;">
+                        <h2 class="panel-title"><i class="fa-solid fa-gears"></i> จัดการระบบฐานข้อมูล</h2>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            สำหรับล้างข้อมูลการเงิน ใบเบิก รายรับ ประวัติ และแจ้งปัญหาทั้งหมด เพื่อเริ่มต้นใหม่ (ล้างทั้งเครื่องนี้และคลัง Firebase)
+                        </p>
+                        <button type="button" id="btn-reset-db" class="btn btn-danger" onclick="handleSystemReset()" style="width: 100%;">
+                            <i class="fa-solid fa-trash-can"></i> ล้างข้อมูลระบบทั้งหมด (Reset Database)
+                        </button>
+                    </div>
+
+                    <div id="president-only-warning" style="display: none; text-align: center; color: var(--accent-warning); font-size: 0.9rem;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> ฟังก์ชันการเงินจะเปิดใช้งานเมื่อเข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบหรือคณะกรรมการแล้วเท่านั้น
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Manage Members (President/Admin Only) -->
+        <div id="members-view" class="tab-content">
+            <div class="panel-card" id="president-members-panel" style="display: none;">
+                <h2 class="panel-title"><i class="fa-solid fa-users-cog"></i> จัดการรายชื่อสมาชิกคณะสีชมพู</h2>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                    สำหรับ เพิ่ม แก้ไขตัวสะกด หรือลบรายชื่อสมาชิกคณะสีชมพู
+                </p>
+                
+                <!-- Form to Add/Edit Member -->
+                <form id="member-manage-form" onsubmit="handleSaveMember(event)" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color);">
+                    <input type="hidden" id="manage-member-mode" value="add"> <!-- 'add' or 'edit' -->
+                    <div class="form-row-2col">
+                        <div class="form-group">
+                            <label for="manage-member-id">รหัสประจำตัว</label>
+                            <input type="text" id="manage-member-id" class="form-control" placeholder="เช่น 40119" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="manage-member-room">ห้อง</label>
+                            <select id="manage-member-room" class="form-control" required>
+                                <option value="5/8">5/8</option>
+                                <option value="5/1">5/1</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row-2col" style="margin-top: 1rem;">
+                        <div class="form-group">
+                            <label for="manage-member-firstname">ชื่อจริง</label>
+                            <input type="text" id="manage-member-firstname" class="form-control" placeholder="เช่น ธนโชติ" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="manage-member-lastname">นามสกุล</label>
+                            <input type="text" id="manage-member-lastname" class="form-control" placeholder="เช่น แจ้งเลิศ" required>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="submit" id="btn-save-member" class="btn btn-primary" style="width: auto; min-width: 160px;">
+                            <i class="fa-solid fa-plus-circle"></i> เพิ่มสมาชิกใหม่
+                        </button>
+                        <button type="button" id="btn-cancel-edit-member" class="btn" style="background: var(--bg-tertiary); display: none; width: auto;" onclick="cancelEditMember()">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Search Input for filtering members -->
+                <div style="margin-bottom: 1.25rem; position: relative;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+                    <input type="text" id="admin-member-search" class="form-control" placeholder="ค้นหาโดยระบุ รหัส, ชื่อ-นามสกุล หรือห้อง..." style="padding-left: 2.5rem;" oninput="renderAdminMembersList()">
+                </div>
+
+                <!-- Members list table inside admin panel -->
+                <div class="members-scroll-container">
+                    <table class="members-desktop-table" style="border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                <th style="padding: 0.5rem;">รหัส</th>
+                                <th style="padding: 0.5rem;">ชื่อ-นามสกุล</th>
+                                <th style="padding: 0.5rem;">ห้อง</th>
+                                <th style="padding: 0.5rem; text-align: right;">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-members-list">
+                            <!-- Skeleton Loader (Replaced on load) -->
+                            <tr>
+                                <td colspan="4" style="padding: 1rem 0.5rem;">
+                                    <div style="display:flex; flex-direction:column; gap:1rem; padding:0.5rem 0; width:100%;">
+                                        <div class="skeleton-text skeleton" style="width:100%; height:0.9rem; margin:0;"></div>
+                                        <div class="skeleton-text skeleton" style="width:100%; height:0.9rem; margin:0;"></div>
+                                        <div class="skeleton-text skeleton" style="width:100%; height:0.9rem; margin:0;"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Mobile responsive list of member cards -->
+                    <div id="admin-members-mobile-list" class="members-mobile-list">
+                        <div style="display:flex; flex-direction:column; gap:0.5rem; width:100%;">
+                            <div class="member-card-item skeleton" style="height: 62px;"></div>
+                            <div class="member-card-item skeleton" style="height: 62px;"></div>
+                            <div class="member-card-item skeleton" style="height: 62px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Accounts Ledger (President/Admin Only) -->
+        <div id="accounts-view" class="tab-content">
+            <!-- Accounts Summary Metrics -->
+            <section class="metrics-grid" style="margin-bottom: 2rem;">
+                <div class="metric-card" style="border-left: 4px solid var(--accent-success); margin-bottom: 0;">
+                    <div class="metric-info">
+                        <h3>💵 ยอดเงินสดคงเหลือ</h3>
+                        <div id="acc-metric-cash-balance" class="metric-val" style="font-size: 1.5rem; color: var(--accent-success);">฿0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            รับ: <span id="acc-metric-cash-in" style="color: var(--accent-success);">฿0.00</span> | 
+                            จ่าย: <span id="acc-metric-cash-out" style="color: var(--accent-danger);">฿0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-card" style="border-left: 4px solid #0284c7; margin-bottom: 0;">
+                    <div class="metric-info">
+                        <h3>🏦 ยอดเงินในบัญชีคงเหลือ</h3>
+                        <div id="acc-metric-bank-balance" class="metric-val" style="font-size: 1.5rem; color: #0284c7;">฿0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            รับ: <span id="acc-metric-bank-in" style="color: var(--accent-success);">฿0.00</span> | 
+                            จ่าย: <span id="acc-metric-bank-out" style="color: var(--accent-danger);">฿0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-card" style="border-left: 4px solid var(--accent-primary); margin-bottom: 0;">
+                    <div class="metric-info">
+                        <h3>💰 รวมเงินคงเหลือสุทธิ</h3>
+                        <div id="acc-metric-overall-balance" class="metric-val" style="font-size: 1.5rem; color: var(--accent-primary);">฿0.00</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            เงินสด + เงินในบัญชีธนาคาร
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="grid-2col" style="margin-top: 1.5rem;">
+                <!-- Record Transaction Form -->
+                <div class="panel-card">
+                    <h2 class="panel-title" id="acc-form-title"><i class="fa-solid fa-file-invoice-dollar"></i> บันทึกรายรับ-รายจ่าย</h2>
+                    <form id="acc-transaction-form" onsubmit="handleSaveTransaction(event)">
+                        <input type="hidden" id="acc-tx-id" value="">
+                        
+                        <div class="form-row-2col">
+                            <div class="form-group">
+                                <label for="acc-tx-type">ประเภทรายการ</label>
+                                <select id="acc-tx-type" class="form-control" onchange="toggleTxPhotoSection()" required>
+                                    <option value="income">📈 รายรับ (Income)</option>
+                                    <option value="expense">📉 รายจ่าย (Expense)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="acc-tx-wallet">ประเภทเงิน</label>
+                                <select id="acc-tx-wallet" class="form-control" required>
+                                    <option value="cash">💵 เงินสด (Cash)</option>
+                                    <option value="bank">🏦 เงินโอนในบัญชีธนาคาร (Bank Transfer)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2col" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label for="acc-tx-amount">จำนวนเงิน (บาท)</label>
+                                <input type="number" id="acc-tx-amount" class="form-control" min="0.01" step="0.01" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="acc-tx-date">วันที่ทำรายการ</label>
+                                <input type="date" id="acc-tx-date" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="acc-tx-desc">รายละเอียด / คำอธิบายรายการ</label>
+                            <input type="text" id="acc-tx-desc" class="form-control" placeholder="เช่น เงินสนับสนุนจากศิษย์เก่า, ค่าซื้อกระดาษริบบิ้นขบวนพาเหรด" required>
+                        </div>
+
+                        <!-- Dynamic Photo Attachment Section for Expenses -->
+                        <div id="acc-tx-photo-section" style="display: none; margin-top: 1.25rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(253, 242, 248, 0.8), rgba(252, 231, 243, 0.5)); border-radius: 1rem; border: 1.5px dashed #f472b6; transition: all 0.3s ease-in-out;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                <h4 style="margin: 0; font-size: 0.95rem; color: #db2777; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-camera-retro" style="font-size: 1.1rem;"></i> แนบหลักฐานสำหรับรายการรายจ่าย
+                                </h4>
+                                <span style="background: #fbcfe8; color: #9d174d; font-size: 0.75rem; padding: 4px 10px; border-radius: 9999px; font-weight: 600;">เฉพาะรายจ่าย</span>
+                            </div>
+                            
+                            <div class="form-row-2col" style="gap: 1rem;">
+                                <!-- Receipt Photo Card -->
+                                <div class="upload-photo-card" style="background: #ffffff; padding: 1rem; border-radius: 0.85rem; border: 1.5px solid #fbcfe8; text-align: center; position: relative; box-shadow: 0 4px 12px rgba(244,114,182,0.08);">
+                                    <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.6rem;">
+                                        📄 รูปภาพใบเสร็จ / ใบสำคัญรับเงิน
+                                    </label>
+                                    
+                                    <div id="acc-tx-receipt-dropzone" style="cursor: pointer; padding: 0.85rem 0.5rem; border: 2px dashed #f472b6; border-radius: 0.6rem; background: #fff5f8; transition: all 0.2s;" onclick="document.getElementById('acc-tx-receipt-input').click()">
+                                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.6rem; color: #ec4899; margin-bottom: 0.3rem;"></i>
+                                        <div style="font-size: 0.82rem; color: #db2777; font-weight: 600;">คลิกเลือกรูปภาพใบเสร็จ</div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">(รองรับไฟล์รูปภาพ JPG, PNG)</div>
+                                    </div>
+                                    <input type="file" id="acc-tx-receipt-input" accept="image/*" onchange="handleTxReceiptSelect(this)" style="display: none;">
+
+                                    <div id="acc-tx-receipt-preview-box" style="display: none; margin-top: 0.75rem; text-align: center;">
+                                        <img id="acc-tx-receipt-preview" src="" alt="Receipt Preview" style="max-height: 110px; max-width: 100%; border-radius: 8px; border: 2px solid #ec4899; box-shadow: 0 4px 12px rgba(236,72,153,0.25); cursor: pointer;" onclick="viewImage(this.src)">
+                                        <button type="button" class="btn" onclick="clearTxReceiptPhoto()" style="margin: 0.4rem auto 0; font-size: 0.75rem; padding: 0.25rem 0.75rem; background: #fee2e2; color: #dc2626; border-radius: 9999px; width: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+                                            <i class="fa-solid fa-trash-can"></i> ลบรูปใบเสร็จ
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Slip Photo Card -->
+                                <div class="upload-photo-card" style="background: #ffffff; padding: 1rem; border-radius: 0.85rem; border: 1.5px solid #bbf7d0; text-align: center; position: relative; box-shadow: 0 4px 12px rgba(34,197,94,0.08);">
+                                    <label style="font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.6rem;">
+                                        🧾 รูปสลิปการโอนเงิน / สลิปจ่ายเงิน
+                                    </label>
+                                    
+                                    <div id="acc-tx-slip-dropzone" style="cursor: pointer; padding: 0.85rem 0.5rem; border: 2px dashed #4ade80; border-radius: 0.6rem; background: #f0fdf4; transition: all 0.2s;" onclick="document.getElementById('acc-tx-slip-input').click()">
+                                        <i class="fa-solid fa-file-invoice-dollar" style="font-size: 1.6rem; color: #16a34a; margin-bottom: 0.3rem;"></i>
+                                        <div style="font-size: 0.82rem; color: #15803d; font-weight: 600;">คลิกเลือกรูปสลิปโอนเงิน</div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">(รองรับไฟล์รูปภาพ JPG, PNG)</div>
+                                    </div>
+                                    <input type="file" id="acc-tx-slip-input" accept="image/*" onchange="handleTxSlipSelect(this)" style="display: none;">
+
+                                    <div id="acc-tx-slip-preview-box" style="display: none; margin-top: 0.75rem; text-align: center;">
+                                        <img id="acc-tx-slip-preview" src="" alt="Slip Preview" style="max-height: 110px; max-width: 100%; border-radius: 8px; border: 2px solid #22c55e; box-shadow: 0 4px 12px rgba(34,197,94,0.25); cursor: pointer;" onclick="viewImage(this.src)">
+                                        <button type="button" class="btn" onclick="clearTxSlipPhoto()" style="margin: 0.4rem auto 0; font-size: 0.75rem; padding: 0.25rem 0.75rem; background: #fee2e2; color: #dc2626; border-radius: 9999px; width: auto; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+                                            <i class="fa-solid fa-trash-can"></i> ลบรูปสลิป
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                            <button type="submit" id="btn-save-tx" class="btn btn-primary" style="width: auto; min-width: 160px;">
+                                <i class="fa-solid fa-save"></i> บันทึกรายการ
+                            </button>
+                            <button type="button" id="btn-cancel-edit-tx" class="btn" style="background: var(--bg-tertiary); display: none; width: auto;" onclick="cancelEditTransaction()">
+                                ยกเลิก
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Transaction Ledger List -->
+                <div class="panel-card print-target">
+                    <h2 class="panel-title"><i class="fa-solid fa-receipt"></i> บัญชีเดินรายการแยกตามประเภทเงิน</h2>
+                    
+                    <!-- Search/Filter -->
+                    <div style="margin-bottom: 1.25rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="acc-tx-search" class="form-control" placeholder="ค้นหาตามคำอธิบาย..." oninput="renderTransactionsList()" style="flex: 1; min-width: 180px;">
+                        <select id="acc-tx-filter-wallet" class="form-control" style="width: auto; max-width: 150px; padding: 0.5rem;" onchange="renderTransactionsList()">
+                            <option value="all">ทุกประเภทเงิน</option>
+                            <option value="cash">💵 เงินสด</option>
+                            <option value="bank">🏦 เงินโอน</option>
+                        </select>
+                        <button class="btn btn-success" onclick="exportToExcel()" style="width: auto; padding: 0.5rem 0.8rem; font-size: 0.85rem;" title="ส่งออกข้อมูลเป็น Excel">
+                            <i class="fa-solid fa-file-excel"></i> ส่งออก Excel
+                        </button>
+                        <button class="btn btn-primary" onclick="exportToHTMLReport()" style="width: auto; padding: 0.5rem 0.8rem; font-size: 0.85rem; background: linear-gradient(135deg, #ec4899, #d946ef); border: none;" title="ส่งออกเป็นไฟล์รายงาน HTML ดูรูปภาพได้ทุกอุปกรณ์">
+                            <i class="fa-solid fa-file-code"></i> รายงานพร้อมรูปภาพ (HTML)
+                        </button>
+                        <button class="btn" onclick="exportToPDF()" style="width: auto; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; font-size: 0.85rem;" title="พิมพ์รายงานเป็น PDF">
+                            <i class="fa-solid fa-file-pdf"></i> พิมพ์ PDF
+                        </button>
+                    </div>
+
+                    <!-- Ledger Container -->
+                    <div id="acc-transactions-list" class="ledger-list" style="max-height: 450px; overflow-y: auto; padding-right: 0.25rem;">
+                        <!-- Skeleton Screen (Replaced on load) -->
+                        <div class="skeleton-ledger-item">
+                            <div class="ledger-left">
+                                <div class="skeleton-circle skeleton"></div>
+                                <div class="ledger-info" style="flex: 1; min-width: 120px;">
+                                    <div class="skeleton-text title skeleton" style="margin-bottom: 0.35rem;"></div>
+                                    <div class="skeleton-text subtitle skeleton"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-ledger-right">
+                                <div class="skeleton-amount skeleton" style="margin-right: 0.5rem;"></div>
+                                <div class="skeleton-button skeleton"></div>
+                            </div>
+                        </div>
+                        <div class="skeleton-ledger-item">
+                            <div class="ledger-left">
+                                <div class="skeleton-circle skeleton"></div>
+                                <div class="ledger-info" style="flex: 1; min-width: 120px;">
+                                    <div class="skeleton-text title skeleton" style="margin-bottom: 0.35rem;"></div>
+                                    <div class="skeleton-text subtitle skeleton"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-ledger-right">
+                                <div class="skeleton-amount skeleton" style="margin-right: 0.5rem;"></div>
+                                <div class="skeleton-button skeleton"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB 5: Member's Own History View -->
+        <div id="member-history-view" class="tab-content">
+            <div class="panel-card">
+                <h2 class="panel-title"><i class="fa-solid fa-list-check"></i> ประวัติและสถานะการเบิกเงินของฉัน</h2>
+                <div class="table-container table-scroll-y">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วันเวลา</th>
+                                <th>รายการสินค้า</th>
+                                <th>จำนวนเงิน</th>
+                                <th>สถานะการเบิก</th>
+                                <th>สลิปโอนคืน (จากประธาน)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="member-history-table">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: Issues / Feedback View -->
+        <div id="issues-view" class="tab-content">
+            <div class="grid-2col">
+                <!-- Submit Issue Form -->
+                <div class="panel-card">
+                    <h2 class="panel-title"><i class="fa-solid fa-edit"></i> แจ้งปัญหาการใช้งานหรือส่งข้อเสนอแนะ</h2>
+                    <form id="issue-report-form" onsubmit="handleIssueSubmit(event)">
+                        <div class="form-group">
+                            <label for="issue-title">หัวข้อปัญหา / ข้อเสนอแนะ</label>
+                            <input type="text" id="issue-title" class="form-control" placeholder="เช่น แปะ QR Code ไม่ขึ้น, โอนเงินช้า หรือข้อเสนอเรื่องงบ" required>
+                        </div>
+                        <div class="form-row-2col">
+                            <div class="form-group">
+                                <label for="issue-category">หมวดหมู่</label>
+                                <select id="issue-category" class="form-control" required>
+                                    <option value="ui_bug">🐞 บั๊กหน้าเว็บ / ระบบค้าง</option>
+                                    <option value="finance_error">💰 ปัญหายอดเงิน / โอนเงินผิดพลาด</option>
+                                    <option value="general_suggestion">💡 ข้อเสนอแนะทั่วไป</option>
+                                    <option value="others">❓ อื่น ๆ</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="issue-reporter">ผู้แจ้งเรื่อง</label>
+                                <input type="text" id="issue-reporter" class="form-control" readonly style="background-color: var(--bg-tertiary);">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="issue-desc">รายละเอียดปัญหา</label>
+                            <textarea id="issue-desc" class="form-control" rows="4" placeholder="อธิบายปัญหารายละเอียดเพิ่มเพื่อให้สามารถแก้ไขได้ตรงจุด..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-paper-plane"></i> ส่งรายงานปัญหา
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Issues List -->
+                <div class="panel-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <h2 class="panel-title" style="margin-bottom: 0;"><i class="fa-solid fa-list-ul"></i> รายการแจ้งปัญหาและสถานะการแก้ไข</h2>
+                        <button id="btn-clear-all-issues" class="btn btn-danger" style="display: none; font-size: 0.8rem; padding: 0.4rem 0.8rem; width: auto;" onclick="deleteAllIssues()">
+                            <i class="fa-solid fa-trash-can"></i> ลบรายการแจ้งทั้งหมด
+                        </button>
+                    </div>
+                    <div id="issues-list" style="display: flex; flex-direction: column; gap: 1rem; max-height: 500px; overflow-y: auto; padding-right: 0.5rem;">
+                        <!-- Populate dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for rejection input -->
+    <div id="reject-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeRejectModal()">&times;</button>
+            <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-triangle-exclamation"></i> ระบุเหตุผลการปฏิเสธการจ่ายเงิน</h3>
+            <div class="form-group">
+                <label for="reject-reason">สาเหตุที่ไม่ยอมรับการขอเบิกเงิน</label>
+                <textarea id="reject-reason" class="form-control" rows="3" placeholder="ระบุเหตุผล เช่น ใบเสร็จอ่านไม่ออก, แนบรูปสินค้าไม่ชัดเจน หรือเงินโควตาหมด" required></textarea>
+            </div>
+            <input type="hidden" id="reject-request-id">
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-danger" onclick="confirmReject()">ยืนยันปฏิเสธ</button>
+                <button class="btn" style="background: var(--bg-tertiary);" onclick="closeRejectModal()">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for reporting issues from login screen -->
+    <div id="login-issue-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px; width: 90%;">
+            <button class="close-modal" onclick="closeLoginIssueModal()">&times;</button>
+            <h3 style="margin-bottom: 1.25rem;"><i class="fa-solid fa-edit"></i> แจ้งปัญหาการใช้งานหรือส่งข้อเสนอแนะ</h3>
+            <form id="login-issue-form" onsubmit="handleLoginIssueSubmit(event)">
+                <div class="form-group">
+                    <label for="login-issue-title">หัวข้อปัญหา / ข้อเสนอแนะ</label>
+                    <input type="text" id="login-issue-title" class="form-control" placeholder="เช่น ไม่พบชื่อในระบบ, ล็อกอินไม่ได้ หรือคำสะกดผิด" required>
+                </div>
+                <div class="form-row-2col">
+                    <div class="form-group">
+                        <label for="login-issue-category">หมวดหมู่</label>
+                        <select id="login-issue-category" class="form-control" required>
+                            <option value="ui_bug">🐞 บั๊กหน้าเว็บ / ระบบค้าง</option>
+                            <option value="finance_error">💰 ปัญหายอดเงิน / ล็อกอินไม่ได้</option>
+                            <option value="general_suggestion">💡 ข้อเสนอแนะทั่วไป</option>
+                            <option value="others">❓ อื่น ๆ</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-issue-reporter">ชื่อ-นามสกุล ผู้แจ้งเรื่อง</label>
+                        <input type="text" id="login-issue-reporter" class="form-control" placeholder="ระบุชื่อจริงของคุณ" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-issue-desc">รายละเอียดปัญหา</label>
+                    <textarea id="login-issue-desc" class="form-control" rows="4" placeholder="อธิบายรายละเอียดปัญหาเพิ่มเพื่อให้สามารถช่วยเหลือหรือแก้ไขได้ตรงจุด..." required></textarea>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-paper-plane"></i> ส่งรายงานปัญหา
+                    </button>
+                    <button type="button" class="btn" style="background: var(--bg-tertiary);" onclick="closeLoginIssueModal()">ยกเลิก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for full size image viewing -->
+    <div id="image-modal" class="modal image-viewer-modal" onclick="closeImageModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="close-modal" onclick="closeImageModal()">&times;</button>
+            <img id="modal-img-element" src="" alt="Full size preview">
+        </div>
+    </div>
+
+    <!-- Modal for transfer/approval confirmation -->
+    <div id="approve-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeApproveModal()">&times;</button>
+            <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-money-check-dollar"></i> ดำเนินการโอนเงินและอนุมัติใบเบิก</h3>
+            
+            <div id="approve-details" style="font-size: 0.95rem; margin-bottom: 1.25rem; color: var(--text-secondary);">
+                <!-- Populated via script -->
+            </div>
+            
+            <!-- Upload Transfer Slip (สลิปโอนเงินของประธาน) -->
+            <div class="form-group" id="president-slip-upload-group" style="margin-bottom: 1.5rem;">
+                <label style="font-weight: 600; color: var(--text-primary);">แนบหลักฐานสลิปโอนเงินเข้าเครื่อง (ถ้ามี)</label>
+                <div class="upload-container" onclick="triggerUpload('upload-transfer-slip')" style="padding: 1rem; border-style: solid;">
+                    <i class="fa-solid fa-file-invoice upload-icon" style="font-size: 1.5rem;"></i>
+                    <p style="font-size: 0.85rem;">กดเพื่อแนบสลิปธนาคารที่โอนเงินแล้ว</p>
+                    <input type="file" id="upload-transfer-slip" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'transfer-slip-preview')">
+                    <div id="transfer-slip-preview" class="upload-preview" onclick="event.stopPropagation()">
+                        <img src="" alt="Transfer Slip Preview" onclick="viewImage(this.src)" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                        <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-transfer-slip', 'transfer-slip-preview')">&times;</button>
+                    </div>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    * หากไม่ได้แนบสลิป ระบบจะทำการสร้าง e-Receipt จำลองให้โดยอัตโนมัติ
+                </div>
+            </div>
+            
+            <!-- Simulated Bank Transfer Progress -->
+            <div id="transfer-progress-bar" style="display:none; width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; margin-bottom: 1rem;">
+                <div id="transfer-progress-fill" style="width: 0%; height: 100%; background: var(--accent-success); transition: width 1s linear;"></div>
+            </div>
+            <p id="transfer-status-text" style="display:none; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; color: var(--accent-success);">
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังส่งคำสั่งโอนและบันทึกสลิปประธาน...
+            </p>
+
+            <input type="hidden" id="approve-request-id">
+            <div id="approve-modal-buttons" style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-success" onclick="confirmApprove()">
+                    <i class="fa-solid fa-check"></i> ยืนยันการโอนเงินคืนสำเร็จ
+                </button>
+                <button class="btn" style="background: var(--bg-tertiary);" onclick="closeApproveModal()">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for attaching transfer slip later -->
+    <div id="attach-slip-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <button class="close-modal" onclick="closeAttachSlipModal()">&times;</button>
+            <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-file-invoice-dollar"></i> แนบ/แก้ไข สลิปการโอนเงินย้อนหลัง</h3>
+            
+            <form id="attach-slip-form" onsubmit="handleSaveAttachedSlip(event)">
+                <input type="hidden" id="attach-slip-req-id">
+                
+                <div id="attach-slip-info" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                    <!-- Populated dynamically via script -->
+                </div>
+
+                <div class="form-group">
+                    <label style="font-weight:600;">เลือกภาพสลิปโอนเงิน *</label>
+                    <div class="upload-container small-container" onclick="triggerUpload('upload-attach-slip-input')">
+                        <i class="fa-solid fa-file-image upload-icon"></i>
+                        <p>กดเพื่อเลือกไฟล์สลิปการโอนเงิน</p>
+                        <input type="file" id="upload-attach-slip-input" accept="image/*" style="display: none;" onchange="handleImagePreview(this, 'attach-slip-preview')">
+                        <div id="attach-slip-preview" class="upload-preview" onclick="event.stopPropagation()">
+                            <img src="" alt="Slip Preview" onclick="viewImage(this.src)" title="คลิกเพื่อดูรูปขนาดเต็ม">
+                            <button type="button" class="remove-btn" onclick="removeImage(event, 'upload-attach-slip-input', 'attach-slip-preview')">&times;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" class="btn" style="background: var(--bg-tertiary);" onclick="closeAttachSlipModal()">ยกเลิก</button>
+                    <button type="submit" id="btn-save-attach-slip" class="btn btn-success">
+                        <i class="fa-solid fa-floppy-disk"></i> บันทึกสลิปโอนเงิน
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert-modal" class="modal" style="z-index: 10050 !important;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem; border-radius: 1.25rem;">
+            <div id="custom-alert-icon" style="font-size: 3.5rem; margin-bottom: 1.25rem;"></div>
+            <h3 id="custom-alert-title" style="margin-bottom: 0.75rem; font-size: 1.35rem; color: var(--text-primary); font-family: var(--font-sans);">แจ้งเตือน</h3>
+            <p id="custom-alert-message" style="margin-bottom: 1.75rem; color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; font-family: var(--font-sans);"></p>
+            <button id="custom-alert-btn" class="btn btn-primary" style="width: 100%; font-size: 0.95rem; padding: 0.75rem 1rem;" onclick="closeCustomAlert()">ตกลง</button>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="custom-confirm-modal" class="modal" style="z-index: 10050 !important;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem; border-radius: 1.25rem;">
+            <div style="font-size: 3.5rem; color: #f59e0b; margin-bottom: 1.25rem;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 id="custom-confirm-title" style="margin-bottom: 0.75rem; font-size: 1.35rem; color: var(--text-primary); font-family: var(--font-sans);">ยืนยันการทำรายการ</h3>
+            <p id="custom-confirm-message" style="margin-bottom: 1.75rem; color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; font-family: var(--font-sans);"></p>
+            <div style="display: flex; gap: 0.75rem;">
+                <button id="custom-confirm-yes-btn" class="btn btn-danger" style="flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;">ยืนยัน</button>
+                <button id="custom-confirm-no-btn" class="btn" style="flex: 1; background: var(--bg-tertiary); padding: 0.75rem 1rem; font-size: 0.95rem;" onclick="closeCustomConfirm(false)">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Prompt Modal -->
+    <div id="custom-prompt-modal" class="modal" style="z-index: 10050 !important;">
+        <div class="modal-content" style="max-width: 450px; padding: 2rem; border-radius: 1.25rem;">
+            <h3 id="custom-prompt-title" style="margin-bottom: 1.25rem; font-size: 1.35rem; color: var(--text-primary); text-align: center; font-family: var(--font-sans);">กรอกข้อมูล</h3>
+            <div class="form-group" style="margin-bottom: 1.75rem;">
+                <label id="custom-prompt-label" for="custom-prompt-input" style="margin-bottom: 0.5rem; display: block; font-size: 0.9rem; color: var(--text-secondary); font-family: var(--font-sans);"></label>
+                <input type="text" id="custom-prompt-input" class="form-control" placeholder="พิมพ์ข้อความที่นี่..." required style="font-size: 16px !important;">
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button id="custom-prompt-submit-btn" class="btn btn-primary" style="flex: 1; padding: 0.75rem 1rem; font-size: 0.95rem;">ตกลง</button>
+                <button id="custom-prompt-cancel-btn" class="btn" style="flex: 1; background: var(--bg-tertiary); padding: 0.75rem 1rem; font-size: 0.95rem;" onclick="closeCustomPrompt(null)">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-screen Loading Overlay -->
+    <div id="full-screen-loader" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.75); z-index: 10000; flex-direction: column; gap: 1.5rem;">
+        <div style="text-align: center; color: white; padding: 2rem; background: var(--bg-secondary); border-radius: 1.25rem; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); max-width: 380px; width: 90%;">
+            <div style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1.25rem;">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <h3 id="loader-title" style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">กำลังบันทึกข้อมูล...</h3>
+            <p id="loader-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; opacity: 0.9;">กรุณารอสักครู่ ระบบกำลังประสานงานกับคลาวด์ Supabase</p>
+        </div>
+    </div>
+
+    <!-- Supabase JS Client & SheetJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Main JavaScript Logic -->
+    <script src="app.js"></script>
+</body>
+</html>

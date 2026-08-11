@@ -1843,11 +1843,13 @@ body, main, header, .panel-card, .metric-card, .tab-btn, .form-control, table, t
     /* 1. Page Container & Layout Padding */
     body {
         padding: 0.5rem !important;
+        padding-bottom: max(180px, env(safe-area-inset-bottom, 140px)) !important;
         font-size: 15px !important;
     }
 
-    .container, .app-container, .main-layout {
+    main, .container, .app-container, .main-layout {
         padding: 0.5rem !important;
+        padding-bottom: max(80px, env(safe-area-inset-bottom, 60px)) !important;
         max-width: 100% !important;
     }
 

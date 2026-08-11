@@ -588,52 +588,166 @@ function exportToHTMLReport() {
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>รายงานสรุปบัญชีและรูปภาพสลิป - สีชมพู</title>
     <style>
-        body { font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif; background: #fdf2f8; color: #334155; margin: 0; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
-        h1 { color: #db2777; margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.6rem; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; vertical-align: middle; }
-        th { background: #fce7f3; color: #9d174d; font-weight: 600; text-align: center; }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100%;
+            -webkit-text-size-adjust: 100%;
+        }
+        body {
+            font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #fdf2f8;
+            color: #334155;
+            padding: 16px;
+            padding-bottom: max(200px, env(safe-area-inset-bottom, 160px)) !important;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(236,72,153,0.12);
+            margin-bottom: 80px;
+        }
+        h1 {
+            color: #db2777;
+            margin-top: 0;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.45rem;
+            flex-wrap: wrap;
+        }
+        .subtitle {
+            color: #64748b;
+            font-size: 0.88rem;
+            margin-bottom: 18px;
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+            border: 1px solid #fbcfe8;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+        table {
+            width: 100%;
+            min-width: 1100px;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        th, td {
+            border: 1px solid #fecdd3;
+            padding: 10px 8px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background: #fce7f3;
+            color: #9d174d;
+            font-weight: 700;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+        }
         tr:nth-child(even) { background: #fff5f8; }
-        .thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid #f472b6; transition: transform 0.2s; }
-        .thumb:hover { transform: scale(1.2); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .badge { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        tr:hover { background: #fce7f3; }
+        
+        .thumb {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid #f472b6;
+            transition: transform 0.15s, box-shadow 0.15s;
+            margin: 2px;
+        }
+        .thumb:hover, .thumb:active {
+            transform: scale(1.18);
+            box-shadow: 0 4px 12px rgba(236,72,153,0.35);
+        }
+        .badge {
+            padding: 5px 12px;
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: inline-block;
+        }
         .bg-success { background: #d1fae5; color: #065f46; }
         .bg-danger { background: #fee2e2; color: #991b1b; }
+        .close-hint {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 1rem;
+            background: rgba(0,0,0,0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px !important;
+                padding-bottom: max(220px, env(safe-area-inset-bottom, 180px)) !important;
+            }
+            .container {
+                padding: 14px !important;
+                border-radius: 12px !important;
+                margin-bottom: 100px !important;
+            }
+            h1 { font-size: 1.15rem !important; }
+            th, td { padding: 8px 6px !important; font-size: 0.82rem !important; }
+            .thumb { width: 42px !important; height: 42px !important; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 รายงานสรุปบัญชีเดินรายการพร้อมรูปภาพสลิปและใบเสร็จ (คลังสีชมพู)</h1>
-        <p style="color:#64748b;">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')} | คลิกที่รูปภาพเพื่อเปิดดูรูปใหญ่แบบขยายเต็มหน้าจอ</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>ลำดับ</th>
-                    <th>วันเวลา</th>
-                    <th>ประเภท</th>
-                    <th>กระเป๋า</th>
-                    <th>ผู้ขอเบิก/แหล่งเงิน</th>
-                    <th>รายละเอียด</th>
-                    <th>จำนวนเงิน</th>
-                    <th>ใบเสร็จ</th>
-                    <th>สินค้า</th>
-                    <th>สลิปโอน</th>
-                    <th>QR Code</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${txRowsHtml}
-            </tbody>
-        </table>
+        <div class="subtitle">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')} | คลิกที่รูปภาพเพื่อเปิดดูรูปใหญ่แบบขยายเต็มหน้าจอ</div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ลำดับ</th>
+                        <th>วันเวลา</th>
+                        <th>ประเภท</th>
+                        <th>กระเป๋า</th>
+                        <th>ผู้ขอเบิก/แหล่งเงิน</th>
+                        <th>รายละเอียด</th>
+                        <th>จำนวนเงิน</th>
+                        <th>ใบเสร็จ</th>
+                        <th>สินค้า</th>
+                        <th>สลิปโอน</th>
+                        <th>QR Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${txRowsHtml}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Fullscreen Image View Modal Overlay -->
-    <div id="imgModal" onclick="this.style.display='none'" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center; cursor:pointer;">
-        <img id="imgModalTarget" style="max-width:90%; max-height:90%; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    <div id="imgModal" onclick="this.style.display='none'" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.88); z-index:99999; justify-content:center; align-items:center; cursor:pointer;">
+        <span class="close-hint">✕ แตะที่ใดก็ได้เพื่อปิด</span>
+        <img id="imgModalTarget" style="max-width:92%; max-height:85%; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
     </div>
 
     <script>
