@@ -1347,8 +1347,15 @@ function loadFromDatabase(callback, isRetry = false) {
                 const offlineBanner = document.getElementById('offline-banner');
                 if (offlineBanner) offlineBanner.style.display = 'block';
                 callback();
+                // Auto-retry once after 5 seconds if timed out
+                if (!isRetry) {
+                    console.log("🔄 Scheduling automatic reconnection attempt in 5 seconds...");
+                    setTimeout(() => {
+                        attemptReconnect();
+                    }, 5000);
+                }
             }
-        }, 10000); // 10 seconds timeout for mobile network latency
+        }, 20000); // 20 seconds timeout for slow mobile network latency
 
         // Fetch all collections
         Promise.all([
@@ -1575,11 +1582,71 @@ function loadFromDatabase(callback, isRetry = false) {
             } else {
                 renderAll();
             }
+            // Auto-retry once after 5 seconds on error
+            if (!isRetry) {
+                console.log("🔄 Scheduling automatic reconnection attempt in 5 seconds...");
+                setTimeout(() => {
+                    attemptReconnect();
+                }, 5000);
+            }
         });
     } else {
         callback();
     }
 }
+
+// Manual reconnect function - callable from offline banner button
+function attemptReconnect() {
+    if (useFirebase) {
+        console.log("Already connected to Supabase. Skipping reconnect.");
+        return;
+    }
+    
+    // Re-initialize Supabase client if needed
+    if (!supabaseClient && typeof window.supabase !== 'undefined') {
+        try {
+            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+            console.log("🔥 Supabase Client re-initialized on reconnect!");
+        } catch (e) {
+            console.error("Supabase re-init failed:", e);
+            showCustomAlert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต", "error");
+            return;
+        }
+    }
+    
+    if (!supabaseClient) {
+        showCustomAlert("ไม่สามารถโหลด Supabase SDK ได้ กรุณารีเฟรชหน้าเว็บ", "error");
+        return;
+    }
+    
+    useFirebase = true;
+    console.log("🔄 Attempting manual reconnection to Supabase...");
+    
+    const reconnectBanner = document.getElementById('offline-banner');
+    if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังเชื่อมต่อใหม่...';
+    
+    loadFromDatabase(() => {
+        checkSession();
+        renderAll();
+        if (useFirebase) {
+            showCustomAlert("เชื่อมต่อฐานข้อมูลออนไลน์สำเร็จแล้ว! 🎉", "success");
+            // Restore offline banner default text in case it shows again later
+            if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> โหมดออฟไลน์: เชื่อมต่อฐานข้อมูลล้มเหลว <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">🔄 เชื่อมต่อใหม่</button>';
+        } else {
+            // Restore offline banner with retry button
+            if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> โหมดออฟไลน์: เชื่อมต่อฐานข้อมูลล้มเหลว <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">🔄 เชื่อมต่อใหม่</button>';
+            showCustomAlert("ยังไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ตแล้วลองใหม่", "error");
+        }
+    }, true);
+}
+
+// Auto-reconnect when browser comes back online
+window.addEventListener('online', () => {
+    console.log("🌐 Browser reports online! Attempting reconnection...");
+    if (!useFirebase) {
+        setTimeout(() => attemptReconnect(), 2000);
+    }
+});
 
 let firebaseListeners = [];
 function setupFirebaseRealtimeListener() {
