@@ -5,16 +5,34 @@ const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 let supabaseClient = null;
 let useFirebase = false;
 
-// Initialize Supabase Client
-if (typeof window.supabase !== 'undefined') {
-    try {
-        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-        useFirebase = true; // Set to true to satisfy existing code logic checks
-        console.log("🔥 Supabase Client initialized successfully!");
-    } catch (e) {
-        console.error("Supabase Client initialization failed:", e);
+// Helper to get Supabase SDK instance
+function getSupabaseLib() {
+    if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+        return window.supabase;
     }
+    if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+        return supabase;
+    }
+    return null;
 }
+
+function initSupabaseClient() {
+    const lib = getSupabaseLib();
+    if (lib) {
+        try {
+            supabaseClient = lib.createClient(supabaseUrl, supabaseAnonKey);
+            useFirebase = true;
+            console.log("🔥 Supabase Client initialized successfully!");
+            return true;
+        } catch (e) {
+            console.error("Supabase Client initialization failed:", e);
+        }
+    }
+    return false;
+}
+
+// Initialize Supabase Client immediately
+initSupabaseClient();
 
 // Helpers to map camelCase (frontend JS) to snake_case (Postgres columns)
 function mapToPostgres(tableName, docData) {
@@ -1597,25 +1615,36 @@ function loadFromDatabase(callback, isRetry = false) {
 
 // Manual reconnect function - callable from offline banner button
 function attemptReconnect() {
-    if (useFirebase) {
+    if (useFirebase && supabaseClient) {
         console.log("Already connected to Supabase. Skipping reconnect.");
         return;
     }
     
     // Re-initialize Supabase client if needed
-    if (!supabaseClient && typeof window.supabase !== 'undefined') {
-        try {
-            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-            console.log("🔥 Supabase Client re-initialized on reconnect!");
-        } catch (e) {
-            console.error("Supabase re-init failed:", e);
-            showCustomAlert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต", "error");
-            return;
-        }
+    if (!supabaseClient) {
+        initSupabaseClient();
     }
     
     if (!supabaseClient) {
-        showCustomAlert("ไม่สามารถโหลด Supabase SDK ได้ กรุณารีเฟรชหน้าเว็บ", "error");
+        // Try to dynamically load fallback script
+        console.warn("Supabase SDK missing, attempting to inject CDN fallback script...");
+        const fallbackScript = document.createElement('script');
+        fallbackScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/supabase/2.48.1/supabase.js';
+        fallbackScript.onload = () => {
+            if (initSupabaseClient()) {
+                console.log("🔥 Supabase loaded via CDN fallback!");
+                useFirebase = true;
+                loadFromDatabase(() => {
+                    checkSession();
+                    renderAll();
+                    showCustomAlert("เชื่อมต่อฐานข้อมูลออนไลน์สำเร็จแล้ว! 🎉", "success");
+                }, true);
+            }
+        };
+        fallbackScript.onerror = () => {
+            showCustomAlert("ไม่สามารถโหลด Supabase SDK ได้ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต", "error");
+        };
+        document.head.appendChild(fallbackScript);
         return;
     }
     
