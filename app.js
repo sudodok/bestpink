@@ -2020,6 +2020,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         // Anonymous session (Member)
                         if (state.user && state.user.role === 'purchaser') {
                             loadFromDatabase(() => {
+                                migrateOldDataToTransactions();
                                 checkSession();
                                 if (isFirstAuthCheck) {
                                     updateSplashProgress(100, 'ซิงก์ข้อมูลคลาวด์สำเร็จ!');
@@ -2044,6 +2045,7 @@ window.addEventListener('DOMContentLoaded', () => {
                                 };
                                 saveToLocalStorage();
                                 loadFromDatabase(() => {
+                                    migrateOldDataToTransactions();
                                     checkSession();
                                     if (isFirstAuthCheck) {
                                         updateSplashProgress(100, 'เข้าสู่ระบบสำเร็จ!');
@@ -4751,16 +4753,19 @@ function migrateOldDataToTransactions() {
     }
 
     // 3. Clean up deleted/unapproved items
+    // IMPORTANT: Only clean up local-only transactions (never synced to cloud).
+    // Cloud-synced transactions (_synced === true) are the source of truth
+    // and must NOT be removed during migration to prevent race conditions
+    // where requests haven't loaded from cloud yet.
     state.transactions = state.transactions.filter(t => {
+        // Never remove cloud-synced transactions during cleanup
+        if (t._synced === true) return true;
+        
         if (t.id.startsWith('tx-inc-')) {
             const incId = t.id.replace('tx-inc-', '');
             const exists = state.incomes.some(inc => inc.id === incId);
             if (!exists) {
                 modified = true;
-                if (useFirebase && db) {
-                    db.collection('transactions').doc(t.id).delete()
-                        .catch(err => console.error("Error deleting orphaned tx:", err));
-                }
                 return false;
             }
         }
@@ -4770,10 +4775,6 @@ function migrateOldDataToTransactions() {
             const existsAndApproved = req && req.status === 'approved';
             if (!existsAndApproved) {
                 modified = true;
-                if (useFirebase && db) {
-                    db.collection('transactions').doc(t.id).delete()
-                        .catch(err => console.error("Error deleting orphaned tx:", err));
-                }
                 return false;
             }
         }
