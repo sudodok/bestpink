@@ -1703,6 +1703,8 @@ function loadRequestImagesInBackground() {
                     renderApprovedReimbursementsTable();
                     renderPendingQueue();
                     renderTransactionsList();
+                    renderLogsList();
+                    renderMemberHistory();
                     console.log("📸 Request images loaded successfully in background.");
                 }
             }
@@ -3124,42 +3126,73 @@ function renderLogsList() {
                         displayDesc = displayDesc.replace("ส่งคำขอเบิกเงิน: ", `ส่งคำขอเบิกเงิน: ของคุณ ${req.name} `);
                     }
                 }
-                const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
-                const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
-                
-                let receiptsThumbs = receiptsList.map(src => `
-                    <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
-                `).join('');
-                
-                let productsThumbs = productsList.map(src => `
-                    <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
-                `).join('');
+                let receiptsList = (req.receipts && req.receipts.length > 0)
+                    ? req.receipts
+                    : (req.receipt ? [req.receipt] : []);
+                receiptsList = receiptsList.filter(Boolean);
 
-                const qrSrc = req.qrcode || MOCK_QRCODE_SVG;
+                let productsList = (req.productPhotos && req.productPhotos.length > 0)
+                    ? req.productPhotos
+                    : (req.productPhoto ? [req.productPhoto] : []);
+                productsList = productsList.filter(Boolean);
+
+                const qrSrc = req.qrcode;
                 const slipSrc = req.transferSlip;
 
-                imageRowMarkup = `
-                    <div class="log-thumbs-row">
-                        <div class="log-thumb-wrapper">
-                            <div style="display:flex; gap:2px; flex-wrap:wrap; margin-bottom:2px;">${receiptsThumbs}</div>
-                            <span>1. ใบเสร็จ</span>
+                const hasAnyImage = receiptsList.length > 0 || productsList.length > 0 || qrSrc || slipSrc;
+
+                if (hasAnyImage || isFetchingImages) {
+                    let receiptsThumbs = '';
+                    if (receiptsList.length > 0) {
+                        receiptsThumbs = receiptsList.map(src => `
+                            <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
+                        `).join('');
+                    } else if (isFetchingImages) {
+                        receiptsThumbs = `<div class="log-img-thumb" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem;"></i></div>`;
+                    }
+
+                    let productsThumbs = '';
+                    if (productsList.length > 0) {
+                        productsThumbs = productsList.map(src => `
+                            <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
+                        `).join('');
+                    } else if (isFetchingImages) {
+                        productsThumbs = `<div class="log-img-thumb" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem;"></i></div>`;
+                    }
+
+                    let qrThumb = '';
+                    if (qrSrc) {
+                        qrThumb = `<img src="${safeImgAttr(qrSrc)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(qrSrc)}')">`;
+                    } else if (isFetchingImages) {
+                        qrThumb = `<div class="log-img-thumb" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem;"></i></div>`;
+                    }
+
+                    imageRowMarkup = `
+                        <div class="log-thumbs-row">
+                            ${receiptsThumbs ? `
+                            <div class="log-thumb-wrapper">
+                                <div style="display:flex; gap:2px; flex-wrap:wrap; margin-bottom:2px;">${receiptsThumbs}</div>
+                                <span>1. ใบเสร็จ</span>
+                            </div>` : ''}
+                            ${productsThumbs ? `
+                            <div class="log-thumb-wrapper">
+                                <div style="display:flex; gap:2px; flex-wrap:wrap; margin-bottom:2px;">${productsThumbs}</div>
+                                <span>2. สินค้า</span>
+                            </div>` : ''}
+                            ${qrThumb ? `
+                            <div class="log-thumb-wrapper">
+                                ${qrThumb}
+                                <span>3. QR รับเงิน</span>
+                            </div>` : ''}
+                            ${slipSrc ? `
+                            <div class="log-thumb-wrapper">
+                                <img src="${safeImgAttr(slipSrc)}" class="log-img-thumb" style="border-color:var(--accent-success);" onclick="viewImage('${safeImgAttr(slipSrc)}')">
+                                <span style="color:var(--accent-success); font-weight:600;">4. สลิปโอน</span>
+                            </div>
+                            ` : ''}
                         </div>
-                        <div class="log-thumb-wrapper">
-                            <div style="display:flex; gap:2px; flex-wrap:wrap; margin-bottom:2px;">${productsThumbs}</div>
-                            <span>2. สินค้า</span>
-                        </div>
-                        <div class="log-thumb-wrapper">
-                            <img src="${safeImgAttr(qrSrc)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(qrSrc)}')">
-                            <span>3. QR รับเงิน</span>
-                        </div>
-                        ${slipSrc ? `
-                        <div class="log-thumb-wrapper">
-                            <img src="${safeImgAttr(slipSrc)}" class="log-img-thumb" style="border-color:var(--accent-success);" onclick="viewImage('${safeImgAttr(slipSrc)}')">
-                            <span style="color:var(--accent-success); font-weight:600;">4. สลิปโอน</span>
-                        </div>
-                        ` : ''}
-                    </div>
-                `;
+                    `;
+                }
             }
         }
         
