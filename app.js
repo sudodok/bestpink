@@ -39,45 +39,83 @@ function mapToPostgres(tableName, docData) {
     if (tableName === 'settings') return { value: docData };
     const mapped = { ...docData };
     delete mapped._synced;
-    if (mapped.productPhotos !== undefined) {
-        mapped.product_photos = mapped.productPhotos;
-        delete mapped.productPhotos;
+
+    if (tableName === 'transactions') {
+        return {
+            id: mapped.id,
+            type: mapped.type,
+            desc: mapped.desc || '',
+            wallet: mapped.wallet || 'bank',
+            date: mapped.date || new Date().toISOString().split('T')[0],
+            amount: Number(mapped.amount) || 0
+        };
     }
-    if (mapped.productPhoto !== undefined) {
-        if (!mapped.product_photos) {
-            mapped.product_photos = [mapped.productPhoto];
+
+    if (tableName === 'incomes') {
+        return {
+            id: mapped.id,
+            description: mapped.description || mapped.desc || '',
+            amount: Number(mapped.amount) || 0,
+            actor: mapped.actor || '',
+            date: mapped.date || new Date().toISOString()
+        };
+    }
+
+    if (tableName === 'logs') {
+        const payload = {
+            id: mapped.id,
+            date: mapped.date || new Date().toISOString(),
+            type: mapped.type || 'info',
+            actor: mapped.actor || '',
+            desc_text: mapped.desc_text || mapped.desc || ''
+        };
+        if (mapped.requestId || mapped.request_id) {
+            payload.request_id = mapped.requestId || mapped.request_id;
         }
-        delete mapped.productPhoto;
+        return payload;
     }
-    if (mapped.transferSlip !== undefined) {
-        mapped.transfer_slip = mapped.transferSlip;
-        delete mapped.transferSlip;
-    }
-    if (mapped.rejectReason !== undefined) {
-        mapped.reject_reason = mapped.rejectReason;
-        delete mapped.rejectReason;
-    }
-    if (mapped.approvedBy !== undefined) {
-        mapped.approved_by = mapped.approvedBy;
-        delete mapped.approvedBy;
-    }
-    if (mapped.requestId !== undefined) {
-        mapped.request_id = mapped.requestId;
+
+    if (tableName === 'requests') {
+        if (mapped.productPhotos !== undefined) {
+            mapped.product_photos = mapped.productPhotos;
+            delete mapped.productPhotos;
+        }
+        if (mapped.productPhoto !== undefined) {
+            if (!mapped.product_photos) {
+                mapped.product_photos = [mapped.productPhoto];
+            }
+            delete mapped.productPhoto;
+        }
+        if (mapped.transferSlip !== undefined) {
+            mapped.transfer_slip = mapped.transferSlip;
+            delete mapped.transferSlip;
+        }
+        if (mapped.rejectReason !== undefined) {
+            mapped.reject_reason = mapped.rejectReason;
+            delete mapped.rejectReason;
+        }
+        if (mapped.approvedBy !== undefined) {
+            mapped.approved_by = mapped.approvedBy;
+            delete mapped.approvedBy;
+        }
         delete mapped.requestId;
-    }
-    if (mapped.reporterName !== undefined) {
-        mapped.reporter = mapped.reporterName + (mapped.reporterRole ? ' (' + mapped.reporterRole + ')' : '');
-        delete mapped.reporterName;
-        delete mapped.reporterRole;
-    }
-    if (tableName === 'logs' && mapped.desc !== undefined) {
-        mapped.desc_text = mapped.desc;
         delete mapped.desc;
+        delete mapped.wallet;
+        delete mapped.slip;
+        return mapped;
     }
-    if (tableName === 'incomes' && mapped.desc !== undefined) {
-        mapped.description = mapped.desc;
-        delete mapped.desc;
+
+    if (tableName === 'issues') {
+        return {
+            id: mapped.id,
+            title: mapped.title || '',
+            desc: mapped.desc || mapped.description || '',
+            reporter: mapped.reporter || (mapped.reporterName ? mapped.reporterName + (mapped.reporterRole ? ' (' + mapped.reporterRole + ')' : '') : ''),
+            status: mapped.status || 'open',
+            date: mapped.date || new Date().toISOString()
+        };
     }
+
     return mapped;
 }
 
@@ -4716,6 +4754,13 @@ function handleSaveTransaction(e) {
             if (reqIdx > -1) {
                 state.requests[reqIdx].amount = amount;
                 if (currentTxSlipPhoto) state.requests[reqIdx].transferSlip = currentTxSlipPhoto;
+                if (currentTxReceiptPhoto) {
+                    state.requests[reqIdx].receipt = currentTxReceiptPhoto;
+                    if (!state.requests[reqIdx].receipts) state.requests[reqIdx].receipts = [];
+                    if (!state.requests[reqIdx].receipts.includes(currentTxReceiptPhoto)) {
+                        state.requests[reqIdx].receipts.unshift(currentTxReceiptPhoto);
+                    }
+                }
                 syncPromises.push(syncItemToFirebase('requests', reqId, state.requests[reqIdx]));
             }
         }
@@ -4810,25 +4855,36 @@ function editTransaction(txId) {
     // Toggle photo section visibility based on expense vs income
     toggleTxPhotoSection();
 
+    let receiptSrc = tx.receipt;
+    let slipSrc = tx.slip;
+    if (tx.id && tx.id.startsWith('tx-exp-')) {
+        const reqId = tx.id.replace('tx-exp-', '');
+        const req = state.requests.find(r => r.id === reqId);
+        if (req) {
+            if (!receiptSrc) receiptSrc = req.receipt || (req.receipts && req.receipts[0]) || '';
+            if (!slipSrc) slipSrc = req.transferSlip || '';
+        }
+    }
+
     // Load photo previews if present
-    if (tx.receipt) {
-        currentTxReceiptPhoto = tx.receipt;
+    if (receiptSrc) {
+        currentTxReceiptPhoto = receiptSrc;
         const img = document.getElementById('acc-tx-receipt-preview');
         const box = document.getElementById('acc-tx-receipt-preview-box');
         if (img && box) {
-            img.src = tx.receipt;
+            img.src = receiptSrc;
             box.style.display = 'block';
         }
     } else {
         clearTxReceiptPhoto();
     }
 
-    if (tx.slip) {
-        currentTxSlipPhoto = tx.slip;
+    if (slipSrc) {
+        currentTxSlipPhoto = slipSrc;
         const img = document.getElementById('acc-tx-slip-preview');
         const box = document.getElementById('acc-tx-slip-preview-box');
         if (img && box) {
-            img.src = tx.slip;
+            img.src = slipSrc;
             box.style.display = 'block';
         }
     } else {
