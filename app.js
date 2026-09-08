@@ -333,16 +333,16 @@ const db = {
                     }
                 };
             },
-            get: async function() {
+            get: async function(projection = '*') {
                 let { data, error } = await supabaseClient
                     .from(collectionName)
-                    .select('*');
+                    .select(projection);
                 if (error) {
                     const cleared = await handleSupabaseAuthError(error);
                     if (cleared) {
                         const retry = await supabaseClient
                             .from(collectionName)
-                            .select('*');
+                            .select(projection);
                         if (retry.error) throw retry.error;
                         data = retry.data;
                     } else {
@@ -352,19 +352,7 @@ const db = {
                 return makeQuerySnapshot(collectionName, data);
             },
             onSnapshot: function(callback) {
-                // Initial load
-                supabaseClient
-                    .from(collectionName)
-                    .select('*')
-                    .then(res => {
-                        if (res.error) {
-                            console.error("Initial collection snapshot error:", res.error);
-                        } else {
-                            callback(makeQuerySnapshot(collectionName, res.data));
-                        }
-                    });
-
-                // Realtime subscription
+                // Realtime subscription: fetches ONLY the modified/added row to prevent 8MB payload downloads
                 const channel = supabaseClient.channel(`realtime-col-${collectionName}-${Math.random()}`)
                     .on('postgres_changes', { 
                         event: '*', 
@@ -375,27 +363,33 @@ const db = {
                         if (payload.eventType === 'INSERT') changeType = 'added';
                         else if (payload.eventType === 'DELETE') changeType = 'removed';
 
-                        // Fetch fresh copy of all rows
+                        const targetId = (payload.new && payload.new.id) || (payload.old && payload.old.id);
+                        if (!targetId) return;
+
+                        if (payload.eventType === 'DELETE') {
+                            const changedDoc = makeDocSnapshot(collectionName, targetId, payload.old);
+                            callback({
+                                docs: [],
+                                docChanges: () => [{ type: changeType, doc: changedDoc }]
+                            });
+                            return;
+                        }
+
                         supabaseClient
                             .from(collectionName)
                             .select('*')
+                            .eq('id', targetId)
+                            .maybeSingle()
                             .then(res => {
-                                if (res.data) {
-                                    let changedDoc = null;
-                                    const targetId = (payload.new && payload.new.id) || (payload.old && payload.old.id);
-                                    if (payload.eventType === 'DELETE') {
-                                        changedDoc = makeDocSnapshot(collectionName, targetId, payload.old);
-                                    } else {
-                                        const freshRow = res.data.find(r => r.id === targetId);
-                                        changedDoc = makeDocSnapshot(collectionName, targetId, freshRow || payload.new);
-                                    }
-                                    const changeItem = {
-                                        type: changeType,
-                                        doc: changedDoc
-                                    };
-                                    callback(makeQuerySnapshot(collectionName, res.data, [changeItem]));
+                                if (res && res.data) {
+                                    const changedDoc = makeDocSnapshot(collectionName, targetId, res.data);
+                                    callback({
+                                        docs: [changedDoc],
+                                        docChanges: () => [{ type: changeType, doc: changedDoc }]
+                                    });
                                 }
-                            });
+                            })
+                            .catch(err => console.error(`Realtime single doc error (${collectionName}):`, err));
                     })
                     .subscribe();
 
@@ -549,13 +543,37 @@ function exportToPDF() {
     window.print();
 }
 
-function exportToHTMLReport() {
+async function exportToHTMLReport() {
     if ((!state.transactions || state.transactions.length === 0) && (!state.requests || state.requests.length === 0)) {
         showCustomAlert("ไม่มีข้อมูลที่จะส่งออกรายงาน HTML", "error");
         return;
     }
 
-    showLoader("กำลังสร้างรายงานรูปภาพ HTML...", "ระบบกำลังประมวลผลตารางรูปภาพทั้งหมดลงในไฟล์ HTML สรุป...");
+    showLoader("กำลังเตรียมรูปภาพและสร้างรายงาน HTML...", "ระบบกำลังประมวลผลตารางรูปภาพทั้งหมดลงในไฟล์ HTML สรุป...");
+
+    // Prefetch all request images from Supabase if any are missing
+    if (useFirebase && supabaseClient) {
+        const needsImages = state.requests.some(r => !r.transferSlip && !r.receipt && (!r.receipts || r.receipts.length === 0));
+        if (needsImages) {
+            try {
+                const { data } = await supabaseClient
+                    .from('requests')
+                    .select('id, transfer_slip, receipt, receipts, qrcode, product_photos');
+                if (data && data.length > 0) {
+                    data.forEach(row => {
+                        const target = state.requests.find(r => r.id === row.id);
+                        if (target) {
+                            const mapped = mapFromPostgres('requests', row);
+                            Object.assign(target, mapped);
+                        }
+                    });
+                    saveToLocalStorage();
+                }
+            } catch (e) {
+                console.warn("Could not prefetch images for report:", e);
+            }
+        }
+    }
 
     setTimeout(() => {
         try {
@@ -1185,12 +1203,12 @@ function getLightweightState(fullState) {
         const light = JSON.parse(JSON.stringify(fullState));
         if (light.requests) {
             light.requests.forEach(r => {
-                if (r.receipt && r.receipt.length > 500) delete r.receipt;
-                if (r.receipts) r.receipts = r.receipts.map(src => (src && src.length > 500) ? MOCK_RECEIPT_SVG : src);
-                if (r.productPhoto && r.productPhoto.length > 500) delete r.productPhoto;
-                if (r.productPhotos) r.productPhotos = r.productPhotos.map(src => (src && src.length > 500) ? MOCK_PRODUCT_SVG : src);
-                if (r.transferSlip && r.transferSlip.length > 500) delete r.transferSlip;
-                if (r.qrcode && r.qrcode.length > 500) r.qrcode = MOCK_QRCODE_SVG;
+                delete r.receipt;
+                delete r.receipts;
+                delete r.productPhoto;
+                delete r.productPhotos;
+                delete r.transferSlip;
+                delete r.qrcode;
             });
         }
         return light;
@@ -1378,9 +1396,11 @@ function loadFromDatabase(callback, isRetry = false) {
             }
         }, 20000); // 20 seconds timeout for slow mobile network latency
 
-        // Fetch all collections
+        // Fetch all collections with lightweight metadata for requests (12 KB instead of 8,000 KB!)
+        const REQUEST_METADATA_COLS = 'id, name, department, item, amount, category, memo, status, reject_reason, approved_by, date, created_at';
+
         Promise.all([
-            db.collection('requests').get(),
+            db.collection('requests').get(REQUEST_METADATA_COLS),
             db.collection('incomes').get(),
             db.collection('logs').get(),
             db.collection('issues').get(),
@@ -1400,6 +1420,7 @@ function loadFromDatabase(callback, isRetry = false) {
                 console.log("Supabase contains no data. Seeding with local state...");
                 seedFirebaseFromLocal();
                 setupFirebaseRealtimeListener();
+                loadRequestImagesInBackground();
                 if (!firstCallbackDone) {
                     firstCallbackDone = true;
                     callback();
@@ -1416,6 +1437,16 @@ function loadFromDatabase(callback, isRetry = false) {
                 requestsSnap.forEach(doc => {
                     const data = doc.data();
                     data._synced = true;
+                    // Preserve cached image data from local memory/storage if available
+                    const existingLocal = localRequests.find(r => r.id === data.id);
+                    if (existingLocal) {
+                        if (existingLocal.receipt && !data.receipt) data.receipt = existingLocal.receipt;
+                        if (existingLocal.receipts && !data.receipts) data.receipts = existingLocal.receipts;
+                        if (existingLocal.productPhotos && !data.productPhotos) data.productPhotos = existingLocal.productPhotos;
+                        if (existingLocal.productPhoto && !data.productPhoto) data.productPhoto = existingLocal.productPhoto;
+                        if (existingLocal.qrcode && !data.qrcode) data.qrcode = existingLocal.qrcode;
+                        if (existingLocal.transferSlip && !data.transferSlip) data.transferSlip = existingLocal.transferSlip;
+                    }
                     state.requests.push(data);
                 });
                 
@@ -1575,6 +1606,7 @@ function loadFromDatabase(callback, isRetry = false) {
                 console.log("State loaded successfully from Supabase Cloud Database.");
                 saveToLocalStorage();
                 setupFirebaseRealtimeListener();
+                loadRequestImagesInBackground();
                 
                 if (!firstCallbackDone) {
                     firstCallbackDone = true;
@@ -1597,6 +1629,11 @@ function loadFromDatabase(callback, isRetry = false) {
             }
 
             useFirebase = false;
+            const offlineBanner = document.getElementById('offline-banner');
+            if (offlineBanner) {
+                offlineBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <strong>โหมดออฟไลน์:</strong> ระบบยังไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณารีเว็บหรือกดเชื่อมต่ออีกครั้ง <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.2);">🔄 กดเชื่อมต่ออีกครั้ง</button>';
+                offlineBanner.style.display = 'block';
+            }
             if (!firstCallbackDone) {
                 firstCallbackDone = true;
                 callback();
@@ -1613,6 +1650,134 @@ function loadFromDatabase(callback, isRetry = false) {
         });
     } else {
         callback();
+    }
+}
+
+// Background non-blocking loader for heavy base64 request images (slips, receipts, QR codes)
+let isFetchingImages = false;
+function loadRequestImagesInBackground() {
+    if (isFetchingImages || !supabaseClient || !useFirebase) return;
+    isFetchingImages = true;
+
+    // Fetch images for requests to conserve bandwidth & prevent latency
+    supabaseClient
+        .from('requests')
+        .select('id, transfer_slip, receipt, receipts, qrcode, product_photos')
+        .then(res => {
+            isFetchingImages = false;
+            if (res.data && Array.isArray(res.data)) {
+                let updated = false;
+                res.data.forEach(imgRow => {
+                    const req = state.requests.find(r => r.id === imgRow.id);
+                    if (req) {
+                        const mapped = mapFromPostgres('requests', imgRow);
+                        if (mapped.transferSlip && req.transferSlip !== mapped.transferSlip) {
+                            req.transferSlip = mapped.transferSlip;
+                            updated = true;
+                        }
+                        if (mapped.receipt && req.receipt !== mapped.receipt) {
+                            req.receipt = mapped.receipt;
+                            updated = true;
+                        }
+                        if (mapped.receipts && JSON.stringify(req.receipts) !== JSON.stringify(mapped.receipts)) {
+                            req.receipts = mapped.receipts;
+                            updated = true;
+                        }
+                        if (mapped.productPhotos && JSON.stringify(req.productPhotos) !== JSON.stringify(mapped.productPhotos)) {
+                            req.productPhotos = mapped.productPhotos;
+                            updated = true;
+                        }
+                        if (mapped.productPhoto && req.productPhoto !== mapped.productPhoto) {
+                            req.productPhoto = mapped.productPhoto;
+                            updated = true;
+                        }
+                        if (mapped.qrcode && req.qrcode !== mapped.qrcode) {
+                            req.qrcode = mapped.qrcode;
+                            updated = true;
+                        }
+                    }
+                });
+                if (updated) {
+                    saveToLocalStorage();
+                }
+                // Re-render all views so all sections update with the real photos simultaneously
+                renderAll();
+                console.log("📸 Request images loaded successfully in background.");
+            } else {
+                renderAll();
+            }
+        })
+        .catch(err => {
+            isFetchingImages = false;
+            renderAll();
+            console.warn("Background images load deferred:", err);
+        });
+}
+
+// On-demand loader for a specific request's images
+async function ensureRequestImagesLoaded(reqId) {
+    const req = state.requests.find(r => r.id === reqId);
+    if (!req) return null;
+    if (req.transferSlip || req.receipt || (req.receipts && req.receipts.length > 0) || req.qrcode) {
+        return req;
+    }
+    if (!supabaseClient || !useFirebase) return req;
+
+    try {
+        const { data } = await supabaseClient
+            .from('requests')
+            .select('id, transfer_slip, receipt, receipts, qrcode, product_photos')
+            .eq('id', reqId)
+            .maybeSingle();
+        if (data) {
+            const mapped = mapFromPostgres('requests', data);
+            Object.assign(req, mapped);
+            saveToLocalStorage();
+        }
+    } catch(e) {
+        console.warn("On-demand image load error:", e);
+    }
+    return req;
+}
+
+// Open image on demand by request ID and field type (e.g. 'receipt', 'slip', 'qrcode', 'product')
+async function viewImageOnDemand(reqId, field, fallbackSrc) {
+    let req = state.requests.find(r => r.id === reqId);
+    if (req) {
+        let src = '';
+        if (field === 'receipt') src = req.receipt || (req.receipts && req.receipts[0]);
+        else if (field === 'slip') src = req.transferSlip;
+        else if (field === 'qrcode') src = req.qrcode;
+        else if (field === 'product') src = req.productPhoto || (req.productPhotos && req.productPhotos[0]);
+
+        if (src) {
+            viewImage(src);
+            return;
+        }
+
+        // Fetch on demand from Supabase
+        showLoader("กำลังโหลดรูปภาพ...", "กรุณารอสักครู่ ระบบกำลังดึงรูปภาพต้นฉบับจากคลาวด์...");
+        req = await ensureRequestImagesLoaded(reqId);
+        hideLoader();
+
+        if (req) {
+            if (field === 'receipt') src = req.receipt || (req.receipts && req.receipts[0]);
+            else if (field === 'slip') src = req.transferSlip;
+            else if (field === 'qrcode') src = req.qrcode;
+            else if (field === 'product') src = req.productPhoto || (req.productPhotos && req.productPhotos[0]);
+
+            if (src) {
+                viewImage(src);
+                renderAll();
+                return;
+            }
+        }
+    }
+
+    if (fallbackSrc) {
+        viewImage(fallbackSrc);
+    } else {
+        showCustomAlert("ไม่มีรูปภาพสำหรับรายการนี้", "info");
     }
 }
 
@@ -2457,16 +2622,37 @@ function renderApprovedReimbursementsTable() {
         const tr = document.createElement('tr');
 
         // Receipts & Product Photos thumbnails
-        const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
-        const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
+        let receiptsList = (req.receipts && req.receipts.length > 0)
+            ? req.receipts
+            : (req.receipt ? [req.receipt] : []);
+        receiptsList = receiptsList.filter(Boolean);
 
-        const receiptsThumbs = receiptsList.map(src => `
-            <img src="${safeImgAttr(src)}" class="log-img-thumb" style="width:32px; height:32px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="viewImage('${safeImgAttr(src)}')" title="คลิกเพื่อดูภาพใบเสร็จ">
-        `).join('');
+        let productsList = (req.productPhotos && req.productPhotos.length > 0)
+            ? req.productPhotos
+            : (req.productPhoto ? [req.productPhoto] : []);
+        productsList = productsList.filter(Boolean);
 
-        const productsThumbs = productsList.map(src => `
-            <img src="${safeImgAttr(src)}" class="log-img-thumb" style="width:32px; height:32px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="viewImage('${safeImgAttr(src)}')" title="คลิกเพื่อดูภาพสินค้า">
-        `).join('');
+        let receiptsThumbs = '';
+        if (receiptsList.length > 0) {
+            receiptsThumbs = receiptsList.map(src => `
+                <img src="${safeImgAttr(src)}" class="log-img-thumb" style="width:32px; height:32px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="viewImage('${safeImgAttr(src)}')" title="คลิกเพื่อดูภาพใบเสร็จ">
+            `).join('');
+        } else if (isFetchingImages) {
+            receiptsThumbs = `<span class="log-img-thumb" style="display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'receipt')" title="กำลังโหลดรูปภาพ (คลิกเพื่อเปิดทันที)"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>`;
+        } else {
+            receiptsThumbs = `<span style="color:var(--text-muted);">-</span>`;
+        }
+
+        let productsThumbs = '';
+        if (productsList.length > 0) {
+            productsThumbs = productsList.map(src => `
+                <img src="${safeImgAttr(src)}" class="log-img-thumb" style="width:32px; height:32px; border-radius:4px; object-fit:cover; cursor:pointer;" onclick="viewImage('${safeImgAttr(src)}')" title="คลิกเพื่อดูภาพสินค้า">
+            `).join('');
+        } else if (isFetchingImages) {
+            productsThumbs = `<span class="log-img-thumb" style="display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'product')" title="กำลังโหลดรูปภาพ (คลิกเพื่อเปิดทันที)"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>`;
+        } else {
+            productsThumbs = `<span style="color:var(--text-muted);">-</span>`;
+        }
 
         const docsMarkup = `
             <div style="display:flex; flex-direction:column; gap:0.35rem; font-size:0.75rem;">
@@ -2486,6 +2672,13 @@ function renderApprovedReimbursementsTable() {
             slipDisplay = `
                 <div style="display:flex; align-items:center; gap:0.4rem;">
                     <img src="${safeImgAttr(req.transferSlip)}" class="log-img-thumb" style="width:36px; height:36px; border-color:var(--accent-success); cursor:pointer;" onclick="viewImage('${safeImgAttr(req.transferSlip)}')">
+                    <span class="badge badge-approved" style="font-size:0.7rem;"><i class="fa-solid fa-check"></i> มีสลิปแล้ว</span>
+                </div>
+            `;
+        } else if (isFetchingImages) {
+            slipDisplay = `
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <span class="log-img-thumb" style="display:inline-flex; width:36px; height:36px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'slip')" title="กำลังดึงสลิป (คลิกเพื่อเปิดดูทันที)"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>
                     <span class="badge badge-approved" style="font-size:0.7rem;"><i class="fa-solid fa-check"></i> มีสลิปแล้ว</span>
                 </div>
             `;
@@ -2927,20 +3120,69 @@ function renderPendingQueue() {
                </div>` 
             : '';
 
-                const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
-                const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
+                const receiptsList = (req.receipts && req.receipts.length > 0)
+                    ? req.receipts.filter(Boolean)
+                    : (req.receipt ? [req.receipt] : []);
+                const productsList = (req.productPhotos && req.productPhotos.length > 0)
+                    ? req.productPhotos.filter(Boolean)
+                    : (req.productPhoto ? [req.productPhoto] : []);
                 
-                const receiptsHtml = receiptsList.map((src, i) => `
-                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
-                        <img src="${safeImgAttr(src)}" onclick="viewImage('${safeImgAttr(src)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Receipt ${i+1}">
-                    </div>
-                `).join('');
-                
-                const productsHtml = productsList.map((src, i) => `
-                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
-                        <img src="${safeImgAttr(src)}" onclick="viewImage('${safeImgAttr(src)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Product ${i+1}">
-                    </div>
-                `).join('');
+                let receiptsHtml = '';
+                if (receiptsList.length > 0) {
+                    receiptsHtml = receiptsList.map((src, i) => `
+                        <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
+                            <img src="${safeImgAttr(src)}" onclick="viewImage('${safeImgAttr(src)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Receipt ${i+1}">
+                        </div>
+                    `).join('');
+                } else if (isFetchingImages) {
+                    receiptsHtml = `
+                        <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'receipt')" title="กำลังโหลดภาพใบเสร็จ (คลิกเพื่อเปิดทันที)">
+                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.6;"></i>
+                        </div>
+                    `;
+                } else {
+                    receiptsHtml = `<span style="font-size:0.75rem; color:var(--text-muted);">-</span>`;
+                }
+
+                let productsHtml = '';
+                if (productsList.length > 0) {
+                    productsHtml = productsList.map((src, i) => `
+                        <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden;">
+                            <img src="${safeImgAttr(src)}" onclick="viewImage('${safeImgAttr(src)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="Product ${i+1}">
+                        </div>
+                    `).join('');
+                } else if (isFetchingImages) {
+                    productsHtml = `
+                        <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'product')" title="กำลังโหลดภาพสินค้า (คลิกเพื่อเปิดทันที)">
+                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.6;"></i>
+                        </div>
+                    `;
+                } else {
+                    productsHtml = `<span style="font-size:0.75rem; color:var(--text-muted);">-</span>`;
+                }
+
+                let qrSectionHtml = '';
+                if (req.qrcode) {
+                    qrSectionHtml = `
+                        <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden; flex-shrink: 0;">
+                            <img src="${safeImgAttr(req.qrcode)}" onclick="viewImage('${safeImgAttr(req.qrcode)}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="QR Code">
+                        </div>
+                        <button class="btn" style="min-height: auto; width: auto; font-size: 0.75rem; padding: 0.35rem 0.6rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${safeImgAttr(req.qrcode)}', '${req.name}_${req.item}')">
+                            <i class="fa-solid fa-download"></i> ดาวน์โหลด QR
+                        </button>
+                    `;
+                } else if (isFetchingImages) {
+                    qrSectionHtml = `
+                        <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'qrcode')" title="กำลังโหลด QR (คลิกเพื่อเปิดทันที)">
+                            <i class="fa-solid fa-spinner fa-spin" style="opacity:0.6;"></i>
+                        </div>
+                        <button class="btn" style="min-height: auto; width: auto; font-size: 0.75rem; padding: 0.35rem 0.6rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="viewImageOnDemand('${req.id}', 'qrcode')">
+                            <i class="fa-solid fa-qrcode"></i> เปิดดู QR
+                        </button>
+                    `;
+                } else {
+                    qrSectionHtml = `<span style="font-size:0.75rem; color:var(--text-muted);">-</span>`;
+                }
 
                 card.innerHTML = `
                     <div class="card-header">
@@ -2975,12 +3217,7 @@ function renderPendingQueue() {
                             <div>
                                 <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">📱 QR Code รับเงิน:</div>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                    <div style="width: 64px; height: 64px; border: 1px solid var(--border-color); border-radius: 0.35rem; overflow: hidden; flex-shrink: 0;">
-                                        <img src="${req.qrcode || MOCK_QRCODE_SVG}" onclick="viewImage('${req.qrcode || MOCK_QRCODE_SVG}')" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" alt="QR Code">
-                                    </div>
-                                    <button class="btn" style="min-height: auto; width: auto; font-size: 0.75rem; padding: 0.35rem 0.6rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${req.qrcode || MOCK_QRCODE_SVG}', '${req.name}_${req.item}')">
-                                        <i class="fa-solid fa-download"></i> ดาวน์โหลด QR
-                                    </button>
+                                    ${qrSectionHtml}
                                 </div>
                             </div>
                         </div>
@@ -3027,19 +3264,60 @@ function renderLogsList() {
                         displayDesc = displayDesc.replace("ส่งคำขอเบิกเงิน: ", `ส่งคำขอเบิกเงิน: ของคุณ ${req.name} `);
                     }
                 }
-                const receiptsList = req.receipts || [req.receipt || MOCK_RECEIPT_SVG];
-                const productsList = req.productPhotos || [req.productPhoto || MOCK_PRODUCT_SVG];
+                let receiptsList = (req.receipts && req.receipts.length > 0)
+                    ? req.receipts.filter(Boolean)
+                    : (req.receipt ? [req.receipt] : []);
+                let productsList = (req.productPhotos && req.productPhotos.length > 0)
+                    ? req.productPhotos.filter(Boolean)
+                    : (req.productPhoto ? [req.productPhoto] : []);
                 
-                let receiptsThumbs = receiptsList.map(src => `
-                    <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
-                `).join('');
+                let receiptsThumbs = '';
+                if (receiptsList.length > 0) {
+                    receiptsThumbs = receiptsList.map(src => `
+                        <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
+                    `).join('');
+                } else if (isFetchingImages) {
+                    receiptsThumbs = `<span class="log-img-thumb" style="display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'receipt')" title="คลิกเพื่อดูรูปใบเสร็จ"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>`;
+                } else {
+                    receiptsThumbs = `<span style="color:var(--text-muted); font-size:0.75rem;">-</span>`;
+                }
                 
-                let productsThumbs = productsList.map(src => `
-                    <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
-                `).join('');
+                let productsThumbs = '';
+                if (productsList.length > 0) {
+                    productsThumbs = productsList.map(src => `
+                        <img src="${safeImgAttr(src)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(src)}')">
+                    `).join('');
+                } else if (isFetchingImages) {
+                    productsThumbs = `<span class="log-img-thumb" style="display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'product')" title="คลิกเพื่อดูรูปสินค้า"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>`;
+                } else {
+                    productsThumbs = `<span style="color:var(--text-muted); font-size:0.75rem;">-</span>`;
+                }
 
-                const qrSrc = req.qrcode || MOCK_QRCODE_SVG;
-                const slipSrc = req.transferSlip;
+                let qrThumb = '';
+                if (req.qrcode) {
+                    qrThumb = `<img src="${safeImgAttr(req.qrcode)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(req.qrcode)}')">`;
+                } else if (isFetchingImages) {
+                    qrThumb = `<span class="log-img-thumb" style="display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'qrcode')" title="คลิกเพื่อดู QR"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>`;
+                } else {
+                    qrThumb = `<span style="color:var(--text-muted); font-size:0.75rem;">-</span>`;
+                }
+
+                let slipThumb = '';
+                if (req.transferSlip) {
+                    slipThumb = `
+                        <div class="log-thumb-wrapper">
+                            <img src="${safeImgAttr(req.transferSlip)}" class="log-img-thumb" style="border-color:var(--accent-success);" onclick="viewImage('${safeImgAttr(req.transferSlip)}')">
+                            <span style="color:var(--accent-success); font-weight:600;">4. สลิปโอน</span>
+                        </div>
+                    `;
+                } else if (isFetchingImages && req.status === 'approved') {
+                    slipThumb = `
+                        <div class="log-thumb-wrapper">
+                            <span class="log-img-thumb" style="display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center; background:rgba(255,255,255,0.06); border-radius:4px; cursor:pointer;" onclick="viewImageOnDemand('${req.id}', 'slip')" title="คลิกเพื่อดูสลิป"><i class="fa-solid fa-spinner fa-spin" style="font-size:0.75rem; opacity:0.6;"></i></span>
+                            <span style="color:var(--accent-success); font-weight:600;">4. สลิปโอน</span>
+                        </div>
+                    `;
+                }
 
                 imageRowMarkup = `
                     <div class="log-thumbs-row">
@@ -3052,15 +3330,10 @@ function renderLogsList() {
                             <span>2. สินค้า</span>
                         </div>
                         <div class="log-thumb-wrapper">
-                            <img src="${safeImgAttr(qrSrc)}" class="log-img-thumb" onclick="viewImage('${safeImgAttr(qrSrc)}')">
+                            ${qrThumb}
                             <span>3. QR รับเงิน</span>
                         </div>
-                        ${slipSrc ? `
-                        <div class="log-thumb-wrapper">
-                            <img src="${safeImgAttr(slipSrc)}" class="log-img-thumb" style="border-color:var(--accent-success);" onclick="viewImage('${safeImgAttr(slipSrc)}')">
-                            <span style="color:var(--accent-success); font-weight:600;">4. สลิปโอน</span>
-                        </div>
-                        ` : ''}
+                        ${slipThumb}
                     </div>
                 `;
             }
@@ -3459,22 +3732,33 @@ function closeImageModal() {
 }
 
 // Open Approval Modal
-function openApproveModal(reqId) {
-    const req = state.requests.find(r => r.id === reqId);
+async function openApproveModal(reqId) {
+    let req = state.requests.find(r => r.id === reqId);
     if (!req) return;
     
+    // If QR code is not in memory yet, load it on demand
+    if (!req.qrcode) {
+        showLoader("กำลังโหลดข้อมูล QR Code...", "ระบบกำลังดึงข้อมูลสำหรับโอนเงิน...");
+        req = await ensureRequestImagesLoaded(reqId);
+        hideLoader();
+    }
+
     document.getElementById('approve-request-id').value = reqId;
     
+    const qrDisplay = req.qrcode
+        ? `<img src="${safeImgAttr(req.qrcode)}" style="max-height: 150px; border-radius: 0.5rem; border: 1px solid var(--border-color);" alt="Transfer QR Code">
+           <button class="btn" style="min-height: auto; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${safeImgAttr(req.qrcode)}', '${req.name}_${req.item}')">
+               <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
+           </button>`
+        : `<p style="color:var(--text-muted); font-size:0.85rem;">(ไม่มี QR Code รับเงินสำหรับรายการนี้)</p>`;
+
     const detailsContainer = document.getElementById('approve-details');
     detailsContainer.innerHTML = `
-        <p><strong>รายการเบิก:</strong> ${req.item}</p>
+        <p><strong>รายการเบิก:</strong> ${escapeHTML(req.item)}</p>
         <p><strong>จำนวนเงิน:</strong> <span style="font-size: 1.25rem; font-weight: 700; color: var(--accent-primary);">${formatCurrency(req.amount)}</span></p>
-        <p><strong>ผู้รับเงิน:</strong> ${req.name} (ฝ่าย${getDeptDisplayName(req.department)})</p>
+        <p><strong>ผู้รับเงิน:</strong> ${escapeHTML(req.name)} (ฝ่าย${getDeptDisplayName(req.department)})</p>
         <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 1rem; gap: 0.5rem;">
-            <img src="${req.qrcode}" style="max-height: 150px; border-radius: 0.5rem; border: 1px solid var(--border-color);" alt="Transfer QR Code">
-            <button class="btn" style="min-height: auto; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${req.qrcode}', '${req.name}_${req.item}')">
-                <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
-            </button>
+            ${qrDisplay}
         </div>
     `;
     
@@ -3520,8 +3804,8 @@ function confirmApprove() {
         if (fill) fill.style.width = '100%';
     }, 50);
     
-    // Only compress the new transfer slip if uploaded, otherwise use mock or existing
-    let slipPromise = Promise.resolve(MOCK_SLIP_SVG);
+    // Only compress the new transfer slip if uploaded, otherwise keep existing
+    let slipPromise = Promise.resolve('');
     if (hasNewSlip && transferSlipSrc && transferSlipSrc.startsWith('data:image')) {
         slipPromise = compressImagePromise(transferSlipSrc, 800, 800, 0.3);
     } else if (transferSlipSrc && transferSlipSrc.startsWith('data:image')) {
@@ -3532,11 +3816,14 @@ function confirmApprove() {
         setTimeout(() => {
             req.status = 'approved';
             req.approvedBy = state.user.name;
-            req.transferSlip = compressedSlip || MOCK_SLIP_SVG;
+            req.transferSlip = compressedSlip || req.transferSlip || '';
             
-            // Clean legacy single-image fields to keep document size extra small
-            delete req.receipt;
-            delete req.productPhoto;
+            if (req.receipt && (!req.receipts || req.receipts.length === 0)) {
+                req.receipts = [req.receipt];
+            }
+            if (req.productPhoto && (!req.productPhotos || req.productPhotos.length === 0)) {
+                req.productPhotos = [req.productPhoto];
+            }
             
             req.date = new Date().toISOString();
             
