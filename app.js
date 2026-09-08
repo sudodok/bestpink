@@ -333,16 +333,16 @@ const db = {
                     }
                 };
             },
-            get: async function() {
+            get: async function(projection = '*') {
                 let { data, error } = await supabaseClient
                     .from(collectionName)
-                    .select('*');
+                    .select(projection);
                 if (error) {
                     const cleared = await handleSupabaseAuthError(error);
                     if (cleared) {
                         const retry = await supabaseClient
                             .from(collectionName)
-                            .select('*');
+                            .select(projection);
                         if (retry.error) throw retry.error;
                         data = retry.data;
                     } else {
@@ -352,19 +352,8 @@ const db = {
                 return makeQuerySnapshot(collectionName, data);
             },
             onSnapshot: function(callback) {
-                // Initial load
-                supabaseClient
-                    .from(collectionName)
-                    .select('*')
-                    .then(res => {
-                        if (res.error) {
-                            console.error("Initial collection snapshot error:", res.error);
-                        } else {
-                            callback(makeQuerySnapshot(collectionName, res.data));
-                        }
-                    });
-
-                // Realtime subscription
+                // Realtime subscription - listens only to postgres changes
+                // Fetches ONLY the single modified/inserted row instead of full table re-download
                 const channel = supabaseClient.channel(`realtime-col-${collectionName}-${Math.random()}`)
                     .on('postgres_changes', { 
                         event: '*', 
@@ -375,27 +364,34 @@ const db = {
                         if (payload.eventType === 'INSERT') changeType = 'added';
                         else if (payload.eventType === 'DELETE') changeType = 'removed';
 
-                        // Fetch fresh copy of all rows
+                        const targetId = (payload.new && payload.new.id) || (payload.old && payload.old.id);
+                        if (!targetId) return;
+
+                        if (payload.eventType === 'DELETE') {
+                            const changedDoc = makeDocSnapshot(collectionName, targetId, payload.old);
+                            callback({
+                                docs: [],
+                                docChanges: () => [{ type: changeType, doc: changedDoc }]
+                            });
+                            return;
+                        }
+
+                        // Fetch only the single changed row to preserve bandwidth & prevent latency
                         supabaseClient
                             .from(collectionName)
                             .select('*')
+                            .eq('id', targetId)
+                            .maybeSingle()
                             .then(res => {
-                                if (res.data) {
-                                    let changedDoc = null;
-                                    const targetId = (payload.new && payload.new.id) || (payload.old && payload.old.id);
-                                    if (payload.eventType === 'DELETE') {
-                                        changedDoc = makeDocSnapshot(collectionName, targetId, payload.old);
-                                    } else {
-                                        const freshRow = res.data.find(r => r.id === targetId);
-                                        changedDoc = makeDocSnapshot(collectionName, targetId, freshRow || payload.new);
-                                    }
-                                    const changeItem = {
-                                        type: changeType,
-                                        doc: changedDoc
-                                    };
-                                    callback(makeQuerySnapshot(collectionName, res.data, [changeItem]));
+                                if (res && res.data) {
+                                    const changedDoc = makeDocSnapshot(collectionName, targetId, res.data);
+                                    callback({
+                                        docs: [changedDoc],
+                                        docChanges: () => [{ type: changeType, doc: changedDoc }]
+                                    });
                                 }
-                            });
+                            })
+                            .catch(err => console.error(`Realtime single doc fetch error (${collectionName}):`, err));
                     })
                     .subscribe();
 
@@ -549,13 +545,35 @@ function exportToPDF() {
     window.print();
 }
 
-function exportToHTMLReport() {
+async function exportToHTMLReport() {
     if ((!state.transactions || state.transactions.length === 0) && (!state.requests || state.requests.length === 0)) {
         showCustomAlert("ไม่มีข้อมูลที่จะส่งออกรายงาน HTML", "error");
         return;
     }
 
     showLoader("กำลังสร้างรายงานรูปภาพ HTML...", "ระบบกำลังประมวลผลตารางรูปภาพทั้งหมดลงในไฟล์ HTML สรุป...");
+
+    // If any approved requests don't have images loaded yet, fetch them on demand
+    const missingImages = state.requests.some(r => r.status === 'approved' && !r.transferSlip && !r.receipt && (!r.receipts || r.receipts.length === 0));
+    if (missingImages && supabaseClient && useFirebase) {
+        try {
+            const res = await supabaseClient
+                .from('requests')
+                .select('id, transfer_slip, receipt, receipts, qrcode, product_photos')
+                .in('status', ['approved']);
+            if (res.data && Array.isArray(res.data)) {
+                res.data.forEach(imgRow => {
+                    const req = state.requests.find(r => r.id === imgRow.id);
+                    if (req) {
+                        const mapped = mapFromPostgres('requests', imgRow);
+                        Object.assign(req, mapped);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn("Report image prefetch error:", e);
+        }
+    }
 
     setTimeout(() => {
         try {
@@ -1363,7 +1381,10 @@ function loadFromDatabase(callback, isRetry = false) {
                 useFirebase = false;
                 firstCallbackDone = true;
                 const offlineBanner = document.getElementById('offline-banner');
-                if (offlineBanner) offlineBanner.style.display = 'block';
+                if (offlineBanner) {
+                    offlineBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <strong>โหมดออฟไลน์:</strong> ระบบยังไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณารีเว็บหรือกดเชื่อมต่ออีกครั้ง <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.2);">🔄 กดเชื่อมต่ออีกครั้ง</button>';
+                    offlineBanner.style.display = 'block';
+                }
                 callback();
                 // Auto-retry once after 5 seconds if timed out
                 if (!isRetry) {
@@ -1375,9 +1396,11 @@ function loadFromDatabase(callback, isRetry = false) {
             }
         }, 20000); // 20 seconds timeout for slow mobile network latency
 
-        // Fetch all collections
+        // Fetch all collections with lightweight metadata for requests (12 KB instead of 8,000 KB!)
+        const REQUEST_METADATA_COLS = 'id, name, department, item, amount, category, memo, status, reject_reason, approved_by, date, created_at';
+
         Promise.all([
-            db.collection('requests').get(),
+            db.collection('requests').get(REQUEST_METADATA_COLS),
             db.collection('incomes').get(),
             db.collection('logs').get(),
             db.collection('issues').get(),
@@ -1397,6 +1420,7 @@ function loadFromDatabase(callback, isRetry = false) {
                 console.log("Supabase contains no data. Seeding with local state...");
                 seedFirebaseFromLocal();
                 setupFirebaseRealtimeListener();
+                loadRequestImagesInBackground();
                 if (!firstCallbackDone) {
                     firstCallbackDone = true;
                     callback();
@@ -1413,6 +1437,16 @@ function loadFromDatabase(callback, isRetry = false) {
                 requestsSnap.forEach(doc => {
                     const data = doc.data();
                     data._synced = true;
+                    // Preserve cached image data from local storage/memory
+                    const existingLocal = localRequests.find(r => r.id === data.id);
+                    if (existingLocal) {
+                        if (existingLocal.receipt && !data.receipt) data.receipt = existingLocal.receipt;
+                        if (existingLocal.receipts && !data.receipts) data.receipts = existingLocal.receipts;
+                        if (existingLocal.productPhotos && !data.productPhotos) data.productPhotos = existingLocal.productPhotos;
+                        if (existingLocal.productPhoto && !data.productPhoto) data.productPhoto = existingLocal.productPhoto;
+                        if (existingLocal.qrcode && !data.qrcode) data.qrcode = existingLocal.qrcode;
+                        if (existingLocal.transferSlip && !data.transferSlip) data.transferSlip = existingLocal.transferSlip;
+                    }
                     state.requests.push(data);
                 });
                 
@@ -1572,6 +1606,7 @@ function loadFromDatabase(callback, isRetry = false) {
                 console.log("State loaded successfully from Supabase Cloud Database.");
                 saveToLocalStorage();
                 setupFirebaseRealtimeListener();
+                loadRequestImagesInBackground();
                 
                 if (!firstCallbackDone) {
                     firstCallbackDone = true;
@@ -1594,6 +1629,11 @@ function loadFromDatabase(callback, isRetry = false) {
             }
 
             useFirebase = false;
+            const offlineBanner = document.getElementById('offline-banner');
+            if (offlineBanner) {
+                offlineBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <strong>โหมดออฟไลน์:</strong> ระบบยังไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณารีเว็บหรือกดเชื่อมต่ออีกครั้ง <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.2);">🔄 กดเชื่อมต่ออีกครั้ง</button>';
+                offlineBanner.style.display = 'block';
+            }
             if (!firstCallbackDone) {
                 firstCallbackDone = true;
                 callback();
@@ -1611,6 +1651,66 @@ function loadFromDatabase(callback, isRetry = false) {
     } else {
         callback();
     }
+}
+
+// Background non-blocking loader for heavy base64 request images (slips, receipts, QR codes)
+let isFetchingImages = false;
+function loadRequestImagesInBackground() {
+    if (isFetchingImages || !supabaseClient || !useFirebase) return;
+    isFetchingImages = true;
+
+    // Fetch images only for approved and pending requests to conserve bandwidth & prevent latency
+    supabaseClient
+        .from('requests')
+        .select('id, transfer_slip, receipt, receipts, qrcode, product_photos')
+        .in('status', ['approved', 'pending'])
+        .then(res => {
+            isFetchingImages = false;
+            if (res.data && Array.isArray(res.data)) {
+                let updated = false;
+                res.data.forEach(imgRow => {
+                    const req = state.requests.find(r => r.id === imgRow.id);
+                    if (req) {
+                        const mapped = mapFromPostgres('requests', imgRow);
+                        if (mapped.transferSlip && req.transferSlip !== mapped.transferSlip) {
+                            req.transferSlip = mapped.transferSlip;
+                            updated = true;
+                        }
+                        if (mapped.receipt && req.receipt !== mapped.receipt) {
+                            req.receipt = mapped.receipt;
+                            updated = true;
+                        }
+                        if (mapped.receipts && JSON.stringify(req.receipts) !== JSON.stringify(mapped.receipts)) {
+                            req.receipts = mapped.receipts;
+                            updated = true;
+                        }
+                        if (mapped.productPhotos && JSON.stringify(req.productPhotos) !== JSON.stringify(mapped.productPhotos)) {
+                            req.productPhotos = mapped.productPhotos;
+                            updated = true;
+                        }
+                        if (mapped.productPhoto && req.productPhoto !== mapped.productPhoto) {
+                            req.productPhoto = mapped.productPhoto;
+                            updated = true;
+                        }
+                        if (mapped.qrcode && req.qrcode !== mapped.qrcode) {
+                            req.qrcode = mapped.qrcode;
+                            updated = true;
+                        }
+                    }
+                });
+                if (updated) {
+                    saveToLocalStorage();
+                    renderApprovedReimbursementsTable();
+                    renderPendingQueue();
+                    renderTransactionsList();
+                    console.log("📸 Request images loaded successfully in background.");
+                }
+            }
+        })
+        .catch(err => {
+            isFetchingImages = false;
+            console.warn("Background images load deferred:", err);
+        });
 }
 
 // Manual reconnect function - callable from offline banner button
@@ -1660,11 +1760,11 @@ function attemptReconnect() {
         if (useFirebase) {
             showCustomAlert("เชื่อมต่อฐานข้อมูลออนไลน์สำเร็จแล้ว! 🎉", "success");
             // Restore offline banner default text in case it shows again later
-            if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> โหมดออฟไลน์: เชื่อมต่อฐานข้อมูลล้มเหลว <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">🔄 เชื่อมต่อใหม่</button>';
+            if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <strong>โหมดออฟไลน์:</strong> ระบบยังไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณารีเว็บหรือกดเชื่อมต่ออีกครั้ง <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.2);">🔄 กดเชื่อมต่ออีกครั้ง</button>';
         } else {
             // Restore offline banner with retry button
-            if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> โหมดออฟไลน์: เชื่อมต่อฐานข้อมูลล้มเหลว <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">🔄 เชื่อมต่อใหม่</button>';
-            showCustomAlert("ยังไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ตแล้วลองใหม่", "error");
+            if (reconnectBanner) reconnectBanner.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> <strong>โหมดออฟไลน์:</strong> ระบบยังไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณารีเว็บหรือกดเชื่อมต่ออีกครั้ง <button onclick="attemptReconnect()" style="background:#fff;color:#ea580c;border:none;border-radius:20px;padding:4px 14px;margin-left:8px;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,0.2);">🔄 กดเชื่อมต่ออีกครั้ง</button>';
+            showCustomAlert("ยังไม่สามารถเชื่อมต่อได้ กรุณารีเว็บหรือกดเชื่อมต่ออีกครั้ง", "error");
         }
     }, true);
 }
@@ -3456,9 +3556,27 @@ function closeImageModal() {
 }
 
 // Open Approval Modal
-function openApproveModal(reqId) {
+async function openApproveModal(reqId) {
     const req = state.requests.find(r => r.id === reqId);
     if (!req) return;
+    
+    // If QR code or receipts are not yet loaded in background, fetch immediately
+    if (!req.qrcode && supabaseClient && useFirebase) {
+        try {
+            const { data } = await supabaseClient
+                .from('requests')
+                .select('id, transfer_slip, receipt, receipts, qrcode, product_photos')
+                .eq('id', reqId)
+                .maybeSingle();
+            if (data) {
+                const mapped = mapFromPostgres('requests', data);
+                Object.assign(req, mapped);
+                saveToLocalStorage();
+            }
+        } catch (e) {
+            console.warn("Approve modal image prefetch error:", e);
+        }
+    }
     
     document.getElementById('approve-request-id').value = reqId;
     
@@ -3468,8 +3586,8 @@ function openApproveModal(reqId) {
         <p><strong>จำนวนเงิน:</strong> <span style="font-size: 1.25rem; font-weight: 700; color: var(--accent-primary);">${formatCurrency(req.amount)}</span></p>
         <p><strong>ผู้รับเงิน:</strong> ${req.name} (ฝ่าย${getDeptDisplayName(req.department)})</p>
         <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 1rem; gap: 0.5rem;">
-            <img src="${req.qrcode}" style="max-height: 150px; border-radius: 0.5rem; border: 1px solid var(--border-color);" alt="Transfer QR Code">
-            <button class="btn" style="min-height: auto; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${req.qrcode}', '${req.name}_${req.item}')">
+            <img src="${req.qrcode || MOCK_QRCODE_SVG}" style="max-height: 150px; border-radius: 0.5rem; border: 1px solid var(--border-color);" alt="Transfer QR Code">
+            <button class="btn" style="min-height: auto; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color);" onclick="downloadQR('${req.qrcode || MOCK_QRCODE_SVG}', '${req.name}_${req.item}')">
                 <i class="fa-solid fa-download"></i> ดาวน์โหลด QR Code
             </button>
         </div>
