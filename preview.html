@@ -15,6 +15,34 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Main Style Sheet -->
     <link rel="stylesheet" href="style.css?v=2.0.3">
+    <!-- OneSignal Push Notification SDK v16 -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "a9bbde99-fe81-4508-88af-089644190fd0",
+          notifyButton: {
+            enable: true,
+            size: "medium",
+            theme: "default",
+            position: "bottom-right",
+            text: {
+              'tip.state.unsubscribed': 'กดรับการแจ้งเตือนเมื่อมีคำขอเบิกเงิน',
+              'tip.state.subscribed': 'คุณเปิดรับการแจ้งเตือนแล้ว',
+              'tip.state.blocked': 'คุณบล็อกการแจ้งเตือนไว้',
+              'message.prenotify': 'คลิกเพื่อเปิดรับการแจ้งเตือนขอเบิกเงิน',
+              'message.action.subscribed': 'ขอบคุณที่เปิดรับการแจ้งเตือน!',
+              'message.action.resubscribed': 'เปิดรับการแจ้งเตือนเรียบร้อยแล้ว',
+              'message.action.unsubscribed': 'ปิดการแจ้งเตือนเรียบร้อยแล้ว',
+              'dialog.main.title': 'การแจ้งเตือน MoneyPink',
+              'dialog.main.button.subscribe': 'เปิดรับการแจ้งเตือน',
+              'dialog.main.button.unsubscribe': 'ปิดการแจ้งเตือน'
+            }
+          }
+        });
+      });
+    </script>
 </head>
 <body>
 
