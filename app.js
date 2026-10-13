@@ -2912,8 +2912,7 @@ function handleSaveAttachedSlip(e) {
         const p2 = syncItemToFirebase('logs', newLog.id, newLog);
 
         Promise.all([p1, p2]).then(() => {
-        // Send Mobile Push Notification via OneSignal
-        sendExpenseNotification(newRequest);
+
             closeAttachSlipModal();
             renderAll(); // Updates Audit logs, Member history tab, Approved reimbursements table!
             hideLoader();
@@ -3717,6 +3716,13 @@ function handleRequestSubmit(event) {
     state.logs.push(newLog);
     
     saveToLocalStorage();
+    
+    // Trigger Mobile Push Notification via OneSignal
+    try {
+        sendExpenseNotification(newRequest);
+    } catch (pushErr) {
+        console.error('Error dispatching push notification:', pushErr);
+    }
     
     showLoader("กำลังส่งคำขอเบิกเงิน...", "กรุณารอสักครู่ ระบบกำลังอัปโหลดเอกสารหลักฐานและบันทึกลง Firebase...");
     const p1 = syncItemToFirebase('requests', newRequest.id, newRequest);
