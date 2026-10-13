@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         app_id: appId,
         headings: { en: title },
         contents: { en: message },
-        included_segments: ['Subscribed Users'],
+        included_segments: ['Total Subscriptions'],
         url: url || 'https://moneypink.vercel.app'
       })
     });
