@@ -1,3 +1,48 @@
+
+// ==========================================
+// OneSignal Mobile Push Notification Support
+// ==========================================
+async function sendExpenseNotification(req) {
+    if (!req) return;
+    try {
+        const name = req.name || (state.user && state.user.name) || 'สมาชิก';
+        const dept = typeof getDeptDisplayName === 'function' ? getDeptDisplayName(req.department) : (req.department || 'สวัสดิการ');
+        const amountFormatted = Number(req.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 });
+        const item = req.item || 'รายการเบิกเงิน';
+        
+        const title = '🔔 มีคำขอเบิกเงินใหม่!';
+        const message = `คุณ${name} (ฝ่าย${dept}) ขอเบิก ฿${amountFormatted} สำหรับ "${item}"`;
+        
+        console.log('[OneSignal] Sending notification via /api/notify:', message);
+        
+        const resp = await fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: title,
+                message: message,
+                url: 'https://moneypink.vercel.app'
+            })
+        });
+        const result = await resp.json();
+        console.log('[OneSignal] /api/notify result:', result);
+    } catch (err) {
+        console.error('[OneSignal] Failed to send push notification:', err);
+    }
+}
+
+async function testMobilePushNotification() {
+    showCustomAlert('กำลังส่งแจ้งเตือนทดสอบเข้ามือถือ...', 'info');
+    await sendExpenseNotification({
+        name: (state.user && state.user.name) || 'ทดสอบระบบ',
+        department: (state.user && state.user.department) || 'สวัสดิการ',
+        amount: 99.00,
+        item: 'ทดสอบระบบแจ้งเตือนเข้ามือถือ (MoneyPink)'
+    });
+    showCustomAlert('ส่งคำขอแจ้งเตือนเรียบร้อยแล้ว! หากคุณเปิดรับการแจ้งเตือนไว้ในมือถือ จะมีข้อความเด้งบนหน้าจอทันที', 'success');
+}
+window.testMobilePushNotification = testMobilePushNotification;
+
 // ========== SUPABASE CONFIGURATION & ADAPTERS ==========
 const supabaseUrl = "https://szaugmspjkyngjjgsxhn.supabase.co";
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6YXVnbXNwamt5bmdqamdzeGhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODUwMDMsImV4cCI6MjA5OTg2MTAwM30.dJ_kF5HiJDiypXFJLPHTVCsySCy5tDrvLy0Vn5C27NE";
@@ -2867,6 +2912,8 @@ function handleSaveAttachedSlip(e) {
         const p2 = syncItemToFirebase('logs', newLog.id, newLog);
 
         Promise.all([p1, p2]).then(() => {
+        // Send Mobile Push Notification via OneSignal
+        sendExpenseNotification(newRequest);
             closeAttachSlipModal();
             renderAll(); // Updates Audit logs, Member history tab, Approved reimbursements table!
             hideLoader();
