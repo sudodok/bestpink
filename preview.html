@@ -41,6 +41,11 @@
             }
           }
         });
+        try {
+          await OneSignal.Slidedown.promptPush();
+        } catch (err) {
+          console.warn('Slidedown prompt error:', err);
+        }
       });
     </script>
 </head>
